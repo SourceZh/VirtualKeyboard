@@ -10,7 +10,7 @@
   },
   "Buttons": [
     {
-      "key": "P",
+      "key": "J",
       "transparency": 0.5,
       "alias": ""
     },
@@ -20,12 +20,12 @@
       "alias": ""
     },
     {
-      "key": "O",
+      "key": "F5",
       "transparency": 0.5,
       "alias": ""
     },
     {
-      "key": "Q",
+      "key": "F6",
       "transparency": 0.5,
       "alias": ""
     }
