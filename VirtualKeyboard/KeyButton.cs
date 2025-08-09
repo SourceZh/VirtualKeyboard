@@ -82,6 +82,15 @@ namespace VirtualKeyboard
             return true;
         }
 
+        public virtual void ButtonPressed()
+        {
+            MethodInfo? overrideButton = Game1.input.GetType().GetMethod("OverrideButton");
+            if (overrideButton != null)
+            {
+                overrideButton.Invoke(Game1.input, new object[] { ButtonKey, true });
+                this.Helper.Input.Suppress(SButton.MouseLeft);
+            }
+        }
         private void EventInputButtonPressed(object? sender, ButtonPressedEventArgs e)
         {
             // ignore if player hasn't loaded a save yet
@@ -92,12 +101,7 @@ namespace VirtualKeyboard
             Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
             if (ShouldTrigger(screenPixels, e.Button))
             {
-                MethodInfo? overrideButton = Game1.input.GetType().GetMethod("OverrideButton");
-                if (overrideButton != null)
-                {
-                    overrideButton.Invoke(Game1.input, new object[] { ButtonKey, true });
-                    this.Helper.Input.Suppress(SButton.MouseLeft);
-                }
+                ButtonPressed();
             }
         }
 

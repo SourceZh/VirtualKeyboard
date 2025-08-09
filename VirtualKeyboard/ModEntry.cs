@@ -7,6 +7,7 @@ using StardewModdingAPI.Events;
 using StardewModdingAPI.Utilities;
 using StardewValley;
 using StardewValley.Menus;
+using static VirtualKeyboard.ModConfig;
 
 namespace VirtualKeyboard
 {
@@ -25,6 +26,10 @@ namespace VirtualKeyboard
         private int ToolbarHeight = 0;
         private Rectangle VirtualToggleButtonBound;
         private bool EnableMenu = false;
+        private Rectangle EditButtonBound, AddButtonBound;
+        private ToggleButton EditButton, AddButton;
+        private bool EnableEditButton = false;
+        private bool ShowKeyBoard = false;
 
         /*********
         ** Public methods
@@ -47,18 +52,28 @@ namespace VirtualKeyboard
             Texture2D texture = helper.ModContent.Load<Texture2D>("assets/togglebutton.png");
             VirtualToggleButtonBound = new Rectangle(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y, this.ModConfig.vToggle.rectangle.Width, this.ModConfig.vToggle.rectangle.Height);
             this.VirtualToggleButton = new ClickableTextureComponent(VirtualToggleButtonBound, texture, new Rectangle(0, 0, 16, 16), 4f, false);
+            VirtualButton EditVirtualButton = new VirtualButton(0, "edit button");
+            this.EditButton = new ToggleButton(helper, EditVirtualButton, this.ModConfig.AboveMenu, EditButtonPressed);
+            VirtualButton AddVirtualButton = new VirtualButton(0, "add button");
+            this.AddButton = new ToggleButton(helper, AddVirtualButton, this.ModConfig.AboveMenu, AddButtonPressed);
 
             helper.WriteConfig<ModConfig>(this.ModConfig);
-            if (this.ModConfig.AboveMenu == 0)
-            {
-                helper.Events.Display.Rendered += this.Rendered;
-            }
-            else
-            {
-                helper.Events.Display.RenderedActiveMenu += this.OnRenderedActiveMenu;
-            }
+
+            helper.Events.Display.Rendered += this.Rendered;
+            helper.Events.Display.RenderedActiveMenu += this.OnRenderedActiveMenu;
             helper.Events.Display.MenuChanged += this.OnMenuChanged;
             helper.Events.Input.ButtonPressed += this.VirtualToggleButtonPressed;
+        }
+
+        private void EditButtonPressed()
+        {
+            EnableEditButton = !EnableEditButton;
+            this.Helper.Input.Suppress(SButton.MouseLeft);
+        }
+
+        private void AddButtonPressed()
+        {
+            this.Helper.Input.Suppress(SButton.MouseLeft);
         }
 
         private void VirtualToggleButtonPressed(object? sender, ButtonPressedEventArgs e)
@@ -71,20 +86,26 @@ namespace VirtualKeyboard
                 return;
 
             Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
-            if (e.Button == this.ModConfig.vToggle.key || ShouldTrigger(screenPixels))
+            if (e.Button == this.ModConfig.vToggle.key || ShouldTrigger(VirtualToggleButtonBound, screenPixels))
             {
                 foreach (List<KeyButton> keyButtonList in this.Buttons)
                     foreach (KeyButton keyButton in keyButtonList)
                         keyButton.Hidden = Convert.ToBoolean(this.EnabledStage);
+                EditButton.Hidden = Convert.ToBoolean(this.EnabledStage);
+                AddButton.Hidden = Convert.ToBoolean(this.EnabledStage);
                 this.EnabledStage = 1 - this.EnabledStage;
                 this.Helper.Input.Suppress(SButton.MouseLeft);
+                if (this.EnabledStage == 0)
+                {
+                    EnableEditButton = false;
+                }
             }
         }
-        private bool ShouldTrigger(Vector2 screenPixels)
+        private bool ShouldTrigger(Rectangle bound, Vector2 screenPixels)
         {
             if (this.VirtualToggleButton == null) return false;
             int ticks = Game1.ticks;
-            if (ticks - this.LastPressTick <= 6 || !VirtualToggleButtonBound.Contains(screenPixels.X, screenPixels.Y))
+            if (ticks - this.LastPressTick <= 6 || !bound.Contains(screenPixels.X, screenPixels.Y))
                 return false;
             this.LastPressTick = ticks;
             return true;
@@ -94,6 +115,8 @@ namespace VirtualKeyboard
             foreach (List<KeyButton> keyButtonList in this.Buttons)
                 foreach (KeyButton keyButton in keyButtonList)
                     keyButton.Hidden = true;
+            EditButton.Hidden = true;
+            AddButton.Hidden = true;
             this.EnabledStage = 0;
             EnableMenu = e.NewMenu != null;
         }
@@ -174,6 +197,20 @@ namespace VirtualKeyboard
                 VirtualToggleButtonBound.Y = OffsetY;
                 OffsetY += this.ModConfig.vToggle.rectangle.Height + 4;
 
+                EditButtonBound.X = VirtualToggleButtonBound.X + VirtualToggleButtonBound.Width + 10;
+                EditButtonBound.Y = VirtualToggleButtonBound.Y;
+                if (this.EditButton.CalcBounds(EditButtonBound.X, EditButtonBound.Y))
+                {
+                    EditButtonBound = this.EditButton.OutterBounds;
+                }
+
+                AddButtonBound.X = EditButtonBound.X + EditButtonBound.Width + 10;
+                AddButtonBound.Y = EditButtonBound.Y;
+                if (this.AddButton.CalcBounds(AddButtonBound.X, AddButtonBound.Y))
+                {
+                    AddButtonBound = this.AddButton.OutterBounds;
+                }
+
                 bool all_calc = true;
                 for (int line = 0; line < this.Buttons.Count; ++line)
                 {
@@ -193,6 +230,17 @@ namespace VirtualKeyboard
             }
         }
 
+        private Rectangle CalBoundFromUIScale(Rectangle bound)
+        {
+            Rectangle CalBound;
+            Vector2 UIScalePos = Utility.ModifyCoordinatesFromUIScale(new Vector2(bound.X, bound.Y));
+            CalBound.X = (int)UIScalePos.X;
+            CalBound.Y = (int)UIScalePos.Y;
+            CalBound.Height = (int)Utility.ModifyCoordinateFromUIScale(bound.Height);
+            CalBound.Width = (int)Utility.ModifyCoordinateFromUIScale(bound.Width);
+            return CalBound;
+        }
+
         /*********
         ** Private methods
         *********/
@@ -201,6 +249,8 @@ namespace VirtualKeyboard
         /// <param name="e">The event data.</param>
         private void Rendered(object? sender, RenderedEventArgs e)
         {
+            if (this.ModConfig.AboveMenu != 0)
+                return;
             // ignore if player hasn't loaded a save yet
             if (!Context.IsWorldReady)
                 return;
@@ -210,11 +260,7 @@ namespace VirtualKeyboard
 
             CalVirtualToggleButtonPosition();
 
-            Vector2 UIScalePos = Utility.ModifyCoordinatesFromUIScale(new Vector2(VirtualToggleButtonBound.X, VirtualToggleButtonBound.Y));
-            this.VirtualToggleButton.bounds.X = (int)UIScalePos.X;
-            this.VirtualToggleButton.bounds.Y = (int)UIScalePos.Y;
-            this.VirtualToggleButton.bounds.Height = (int)Utility.ModifyCoordinateFromUIScale(this.ModConfig.vToggle.rectangle.Height);
-            this.VirtualToggleButton.bounds.Width = (int)Utility.ModifyCoordinateFromUIScale(this.ModConfig.vToggle.rectangle.Width);
+            this.VirtualToggleButton.bounds = CalBoundFromUIScale(VirtualToggleButtonBound);
             this.VirtualToggleButton.scale = Utility.ModifyCoordinateFromUIScale(4.0f);
             this.VirtualToggleButton.baseScale = this.VirtualToggleButton.scale;
 
@@ -224,6 +270,9 @@ namespace VirtualKeyboard
 
         private void OnRenderedActiveMenu(object? sender, RenderedActiveMenuEventArgs e)
         {
+            if (this.ModConfig.AboveMenu == 0)
+                return;
+
             // ignore if player hasn't loaded a save yet
             if (!Context.IsWorldReady)
                 return;
