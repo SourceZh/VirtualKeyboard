@@ -29,7 +29,30 @@ namespace VirtualKeyboard
         private Rectangle EditButtonBound, AddButtonBound;
         private ToggleButton EditButton, AddButton;
         private bool EnableEditButton = false;
-        private bool ShowKeyBoard = false;
+        private IModHelper Helper;
+
+        public void UpdateAllButtons()
+        {
+            int buttonsLineNumber = this.ModConfig.Buttons.Count;
+            for (int line = 0; line < buttonsLineNumber; line++)
+            {
+                int index = 0;
+                while(index < this.ModConfig.Buttons[line].Count)
+                {
+                    if (this.Buttons[line][index].Deleted)
+                    {
+                        this.Buttons[line].RemoveAt(index);
+                        this.ModConfig.Buttons[line].RemoveAt(index);
+                    }
+                    else
+                    {
+                        index++;
+                    }
+                }
+            }
+
+            this.Helper.WriteConfig<ModConfig>(this.ModConfig);
+        }
 
         /*********
         ** Public methods
@@ -38,14 +61,15 @@ namespace VirtualKeyboard
         /// <param name="helper">Provides simplified APIs for writing mods.</param>
         public override void Entry(IModHelper helper)
         {
+            this.Helper = helper;
             this.ModConfig = Helper.ReadConfig<ModConfig>();
-            int buttonsLineNumber = this.ModConfig.Buttons.Length;
+            int buttonsLineNumber = this.ModConfig.Buttons.Count;
             for (int line = 0; line < buttonsLineNumber; line++)
             {
                 this.Buttons.Add(new List<KeyButton>());
-                for (int index = 0; index < this.ModConfig.Buttons[line].Length; ++index)
+                for (int index = 0; index < this.ModConfig.Buttons[line].Count; ++index)
                 {
-                    this.Buttons[line].Add(new KeyButton(helper, this.ModConfig.Buttons[line][index], this.ModConfig.AboveMenu));
+                    this.Buttons[line].Add(new KeyButton(this, helper, this.ModConfig.Buttons[line][index], this.ModConfig.AboveMenu));
                 }
             }
 
@@ -53,9 +77,9 @@ namespace VirtualKeyboard
             VirtualToggleButtonBound = new Rectangle(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y, this.ModConfig.vToggle.rectangle.Width, this.ModConfig.vToggle.rectangle.Height);
             this.VirtualToggleButton = new ClickableTextureComponent(VirtualToggleButtonBound, texture, new Rectangle(0, 0, 16, 16), 4f, false);
             VirtualButton EditVirtualButton = new VirtualButton(0, "edit button");
-            this.EditButton = new ToggleButton(helper, EditVirtualButton, this.ModConfig.AboveMenu, EditButtonPressed);
+            this.EditButton = new ToggleButton(this, helper, EditVirtualButton, this.ModConfig.AboveMenu, EditButtonPressed);
             VirtualButton AddVirtualButton = new VirtualButton(0, "add button");
-            this.AddButton = new ToggleButton(helper, AddVirtualButton, this.ModConfig.AboveMenu, AddButtonPressed);
+            this.AddButton = new ToggleButton(this, helper, AddVirtualButton, this.ModConfig.AboveMenu, AddButtonPressed);
 
             helper.WriteConfig<ModConfig>(this.ModConfig);
 
@@ -65,15 +89,32 @@ namespace VirtualKeyboard
             helper.Events.Input.ButtonPressed += this.VirtualToggleButtonPressed;
         }
 
+        private void ChangeEditButton(bool is_change)
+        {
+            EnableEditButton = is_change;
+            foreach (List<KeyButton> keyButtonList in this.Buttons)
+                foreach (KeyButton keyButton in keyButtonList)
+                    keyButton.EditButton = EnableEditButton;
+        }
+
         private void EditButtonPressed()
         {
-            EnableEditButton = !EnableEditButton;
+            ChangeEditButton(!EnableEditButton);
             this.Helper.Input.Suppress(SButton.MouseLeft);
         }
 
         private void AddButtonPressed()
         {
             this.Helper.Input.Suppress(SButton.MouseLeft);
+        }
+
+        private void ShowAllButtons(bool is_show)
+        {
+            foreach (List<KeyButton> keyButtonList in this.Buttons)
+                foreach (KeyButton keyButton in keyButtonList)
+                    keyButton.Hidden = is_show;
+            EditButton.Hidden = is_show;
+            AddButton.Hidden = is_show;
         }
 
         private void VirtualToggleButtonPressed(object? sender, ButtonPressedEventArgs e)
@@ -88,19 +129,16 @@ namespace VirtualKeyboard
             Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
             if (e.Button == this.ModConfig.vToggle.key || ShouldTrigger(VirtualToggleButtonBound, screenPixels))
             {
-                foreach (List<KeyButton> keyButtonList in this.Buttons)
-                    foreach (KeyButton keyButton in keyButtonList)
-                        keyButton.Hidden = Convert.ToBoolean(this.EnabledStage);
-                EditButton.Hidden = Convert.ToBoolean(this.EnabledStage);
-                AddButton.Hidden = Convert.ToBoolean(this.EnabledStage);
+                ShowAllButtons(Convert.ToBoolean(this.EnabledStage));
                 this.EnabledStage = 1 - this.EnabledStage;
                 this.Helper.Input.Suppress(SButton.MouseLeft);
                 if (this.EnabledStage == 0)
                 {
-                    EnableEditButton = false;
+                    ChangeEditButton(false);
                 }
             }
         }
+
         private bool ShouldTrigger(Rectangle bound, Vector2 screenPixels)
         {
             if (this.VirtualToggleButton == null) return false;
@@ -110,13 +148,10 @@ namespace VirtualKeyboard
             this.LastPressTick = ticks;
             return true;
         }
+
         private void OnMenuChanged(object? sender, MenuChangedEventArgs e)
         {
-            foreach (List<KeyButton> keyButtonList in this.Buttons)
-                foreach (KeyButton keyButton in keyButtonList)
-                    keyButton.Hidden = true;
-            EditButton.Hidden = true;
-            AddButton.Hidden = true;
+            ShowAllButtons(true);
             this.EnabledStage = 0;
             EnableMenu = e.NewMenu != null;
         }

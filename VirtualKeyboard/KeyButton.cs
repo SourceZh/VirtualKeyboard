@@ -10,6 +10,9 @@ namespace VirtualKeyboard
     internal class KeyButton
     {
         public const int ButtonBorderWidth = 4;
+        public bool Deleted;
+        public bool Hidden;
+        public bool EditButton;
         public Rectangle OutterBounds;
         private Rectangle InnerBounds;
         private readonly SButton ButtonKey;
@@ -17,26 +20,25 @@ namespace VirtualKeyboard
         private string Alias;
         private readonly IModHelper Helper;
         private readonly float ButtonScale;
-        public bool Hidden;
-        public int AboveMenu;
+        private int AboveMenu;
+        private Rectangle CloseButtonBounds;
+        private ModEntry ModEntry;
 
-        public KeyButton(IModHelper helper, ModConfig.VirtualButton buttonDefine, int AboveMenu)
+        public KeyButton(ModEntry modEntry, IModHelper helper, ModConfig.VirtualButton buttonDefine, int aboveMenu)
         {
+            this.ModEntry = modEntry;
+            this.Deleted = false;
             this.Hidden = true;
+            this.EditButton = false;
             this.ButtonKey = buttonDefine.key;
             this.Alias = buttonDefine.alias != "" ? buttonDefine.alias : this.ButtonKey.ToString();
             this.Helper = helper;
 
             this.ButtonScale = Helper.ReadConfig<ModConfig>().ButtonScale;
-            this.AboveMenu = AboveMenu;
-            if (this.AboveMenu == 0)
-            {
-                helper.Events.Display.Rendered += this.OnRendered;
-            }
-            else
-            {
-                helper.Events.Display.RenderedActiveMenu += this.OnRenderedActiveMenu;
-            }
+            this.AboveMenu = aboveMenu;
+ 
+            helper.Events.Display.Rendered += this.OnRendered;
+            helper.Events.Display.RenderedActiveMenu += this.OnRenderedActiveMenu;
             helper.Events.Input.ButtonPressed += this.EventInputButtonPressed;
         }
 
@@ -73,11 +75,19 @@ namespace VirtualKeyboard
 
             this.OutterBounds.Width = InnerBounds.Width + ButtonBorderWidth * 2;
             this.OutterBounds.Height = InnerBounds.Height + ButtonBorderWidth * 2;
+
+            int CloseButtonSize = 20;
+            this.CloseButtonBounds.X = this.OutterBounds.X + InnerBounds.Width - CloseButtonSize / 2;
+            this.CloseButtonBounds.Y = this.OutterBounds.Y - CloseButtonSize / 2;
+            this.CloseButtonBounds.Width = CloseButtonSize;
+            this.CloseButtonBounds.Height = CloseButtonSize;
+
             return true;
         }
-        private bool ShouldTrigger(Vector2 screenPixels, SButton button)
+
+        private bool ShouldTrigger(Vector2 screenPixels, Rectangle bound)
         {
-            if (!this.OutterBounds.Contains(screenPixels.X, screenPixels.Y) || this.Hidden)
+            if (!bound.Contains(screenPixels.X, screenPixels.Y))
                 return false;
             return true;
         }
@@ -91,22 +101,60 @@ namespace VirtualKeyboard
                 this.Helper.Input.Suppress(SButton.MouseLeft);
             }
         }
+
         private void EventInputButtonPressed(object? sender, ButtonPressedEventArgs e)
         {
+            if (Deleted)
+                return;
             // ignore if player hasn't loaded a save yet
             if (!Context.IsWorldReady)
                 return;
             if (this.Hidden)
                 return;
             Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
-            if (ShouldTrigger(screenPixels, e.Button))
+
+            if (this.EditButton)
             {
-                ButtonPressed();
+                if (ShouldTrigger(screenPixels, this.CloseButtonBounds))
+                {
+                    this.Deleted = true;
+                    ModEntry.UpdateAllButtons();
+                }
             }
+            else
+            {
+                if (ShouldTrigger(screenPixels, this.OutterBounds))
+                {
+                    ButtonPressed();
+                }
+            }
+        }
+
+        private Rectangle CalBoundFromUIScale(Rectangle bound)
+        {
+            Rectangle CalBound;
+            Vector2 UIScalePos = Utility.ModifyCoordinatesFromUIScale(new Vector2(bound.X, bound.Y));
+            CalBound.X = (int)UIScalePos.X;
+            CalBound.Y = (int)UIScalePos.Y;
+            CalBound.Height = (int)Utility.ModifyCoordinateFromUIScale(bound.Height);
+            CalBound.Width = (int)Utility.ModifyCoordinateFromUIScale(bound.Width);
+            return CalBound;
+        }
+
+        public virtual void OnRenderedCloseButton(RenderedEventArgs e)
+        {
+            if (!this.EditButton)
+                return;
+            Rectangle UIScaleCloseButtonBoundsRectangle = CalBoundFromUIScale(this.CloseButtonBounds);
+            e.SpriteBatch.Draw(Game1.mouseCursors, UIScaleCloseButtonBoundsRectangle, new Rectangle(337, 494, 12, 12), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
         }
 
         private void OnRendered(object? sender, RenderedEventArgs e)
         {
+            if (this.AboveMenu != 0)
+                return;
+            if (Deleted)
+                return;
             // ignore if player hasn't loaded a save yet
             if (!Context.IsWorldReady)
                 return;
@@ -114,22 +162,31 @@ namespace VirtualKeyboard
                 return;
 
             //e.SpriteBatch.Draw(Game1.menuTexture, OutterBounds, new Rectangle(0, 256, 60, 60), Color.White);
-            Vector2 UIScaleOutterBounds = Utility.ModifyCoordinatesFromUIScale(new Vector2(this.OutterBounds.X, this.OutterBounds.Y));
-            Rectangle UIScaleOutterBoundsRectangle;
-            UIScaleOutterBoundsRectangle.X = (int)UIScaleOutterBounds.X;
-            UIScaleOutterBoundsRectangle.Y = (int)UIScaleOutterBounds.Y;
-            UIScaleOutterBoundsRectangle.Height = (int)Utility.ModifyCoordinateFromUIScale(OutterBounds.Height);
-            UIScaleOutterBoundsRectangle.Width = (int)Utility.ModifyCoordinateFromUIScale(OutterBounds.Width);
+            Rectangle UIScaleOutterBoundsRectangle = CalBoundFromUIScale(this.OutterBounds);
             e.SpriteBatch.Draw(Game1.menuTexture, UIScaleOutterBoundsRectangle, new Rectangle(0, 256, 60, 60), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
 
             //e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, new Vector2(this.InnerBounds.X, this.InnerBounds.Y), Game1.textColor);
             float UIScale = Utility.ModifyCoordinateFromUIScale(this.ButtonScale);
             Vector2 UIScaleInnerBounds = Utility.ModifyCoordinatesFromUIScale(new Vector2(this.InnerBounds.X, this.InnerBounds.Y));
             e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
+
+            OnRenderedCloseButton(e);
+        }
+
+        public virtual void OnRenderedActiveMenuCloseButton(RenderedActiveMenuEventArgs e)
+        {
+            if (!this.EditButton)
+                return;
+            Rectangle UIScaleCloseButtonBoundsRectangle = this.CloseButtonBounds;
+            e.SpriteBatch.Draw(Game1.mouseCursors, UIScaleCloseButtonBoundsRectangle, new Rectangle(337, 494, 12, 12), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
         }
 
         private void OnRenderedActiveMenu(object? sender, RenderedActiveMenuEventArgs e)
         {
+            if (this.AboveMenu == 0)
+                return;
+            if (Deleted)
+                return;
             // ignore if player hasn't loaded a save yet
             if (!Context.IsWorldReady)
                 return;
@@ -137,13 +194,15 @@ namespace VirtualKeyboard
                 return;
 
             //e.SpriteBatch.Draw(Game1.menuTexture, OutterBounds, new Rectangle(0, 256, 60, 60), Color.White);
-            Rectangle UIScaleOutterBoundsRectangle = OutterBounds;
+            Rectangle UIScaleOutterBoundsRectangle = this.OutterBounds;
             e.SpriteBatch.Draw(Game1.menuTexture, UIScaleOutterBoundsRectangle, new Rectangle(0, 256, 60, 60), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
 
             //e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, new Vector2(this.InnerBounds.X, this.InnerBounds.Y), Game1.textColor);
             float UIScale = this.ButtonScale;
             Vector2 UIScaleInnerBounds = new Vector2(this.InnerBounds.X, this.InnerBounds.Y);
             e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
+
+            OnRenderedActiveMenuCloseButton(e);
         }
     }
 }

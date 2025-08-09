@@ -8,9 +8,9 @@ namespace VirtualKeyboard
         public Toggle vToggle { get; set; } = new Toggle((SButton)0, new Rect(Constants.TargetPlatform == GamePlatform.Android ? 96 : 36, 12, 64, 64));
         public int AboveMenu { get; set; } = 0;
         public float ButtonScale { get; set; } = 1.0f;
-        public VirtualButton[][] Buttons { get; set; } = new VirtualButton[][]
+        public List<List<VirtualButton>> Buttons { get; set; } = new List<List<VirtualButton>>
         {
-            new VirtualButton[]{
+            new List<VirtualButton>{
               new VirtualButton((SButton) 80),
               new VirtualButton((SButton) 73),
               new VirtualButton((SButton) 79),

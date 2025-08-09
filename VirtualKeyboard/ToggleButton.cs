@@ -1,11 +1,12 @@
 ﻿using StardewModdingAPI;
+using StardewModdingAPI.Events;
 
 namespace VirtualKeyboard
 {
     internal class ToggleButton : KeyButton
     {
         Action ButtonPressedAction;
-        public ToggleButton(IModHelper helper, ModConfig.VirtualButton buttonDefine, int AboveMenu, Action action) : base(helper, buttonDefine, AboveMenu)
+        public ToggleButton(ModEntry modEntry, IModHelper helper, ModConfig.VirtualButton buttonDefine, int aboveMenu, Action action) : base(modEntry, helper, buttonDefine, aboveMenu)
         {
             ButtonPressedAction = action;
         }
@@ -13,6 +14,16 @@ namespace VirtualKeyboard
         public override void ButtonPressed()
         {
             ButtonPressedAction();
+        }
+
+        public override void OnRenderedCloseButton(RenderedEventArgs e)
+        {
+
+        }
+
+        public override void OnRenderedActiveMenuCloseButton(RenderedActiveMenuEventArgs e)
+        {
+
         }
     }
 }
