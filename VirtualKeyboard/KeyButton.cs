@@ -107,6 +107,7 @@ namespace VirtualKeyboard
                 return false;
             return true;
         }
+
         private bool ShouldTrigger(Vector2 screenPixels, Rectangle bound)
         {
             Rectangle checkBound = bound;
@@ -169,6 +170,39 @@ namespace VirtualKeyboard
             }
         }
 
+        public void ChangeButtonValue()
+        {
+            if (Constants.TargetPlatform != GamePlatform.Android)
+                return;
+            
+            this.ModEntry.Monitor.Log("EventInputButtonReleased Android", LogLevel.Debug);
+            Assembly monoGameAssembly = Assembly.Load("MonoGame.Framework");
+            Type? keyboardInputType = monoGameAssembly.GetType("Microsoft.Xna.Framework.Input.KeyboardInput");
+            if (keyboardInputType == null) return;
+            this.ModEntry.Monitor.Log("EventInputButtonReleased keyboardInputType", LogLevel.Debug);
+            MethodInfo? showAndroidKeyborad = keyboardInputType.GetMethod("Show", BindingFlags.Public | BindingFlags.Static);
+            if (showAndroidKeyborad == null) return;
+            this.ModEntry.Monitor.Log("EventInputButtonReleased showAndroidKeyborad", LogLevel.Debug);
+            Task<string>? key_task = showAndroidKeyborad.Invoke(null, new object[] { "Key", "Enum Keys", this.ButtonKey.ToString(), false }) as Task<string>;
+            if (key_task == null) return;
+            this.ModEntry.Monitor.Log("EventInputButtonReleased Invoke task", LogLevel.Debug);
+            key_task.ContinueWith(s =>
+            {
+                if (Enum.TryParse(s.Result, ignoreCase: true, out SButton buttonKey))
+                {
+                    this.ButtonKey = buttonKey;
+                    this.Alias = this.ButtonKey.ToString();
+                    this.PaddingAlias = this.Alias;
+                    Task<string>? descript_task = showAndroidKeyborad.Invoke(null, new object[] { "Description", "description", Alias, false }) as Task<string>;
+                    descript_task.ContinueWith(ss => {
+                        this.Alias = ss.Result;
+                        this.PaddingAlias = Alias;
+                        CalcBounds(this.OutterBounds.X, this.OutterBounds.Y);
+                        ModEntry.UpdateAllButtons();
+                    });
+                }
+            });
+        }
         private void EventInputButtonReleased(object? sender, ButtonReleasedEventArgs e)
         {
             if (e.Button != SButton.MouseLeft)
@@ -184,37 +218,7 @@ namespace VirtualKeyboard
             int ticks = Game1.ticks;
             if (ticks - this.LastPressTick > 24 && this.BeforeOutterBounds.X == this.OutterBounds.X && this.BeforeOutterBounds.Y == this.OutterBounds.Y)
             {
-                if (Constants.TargetPlatform == GamePlatform.Android)
-                {
-                    this.ModEntry.Monitor.Log("EventInputButtonReleased Android", LogLevel.Debug);
-                    Assembly monoGameAssembly = Assembly.Load("MonoGame.Framework");
-                    Type? keyboardInputType = monoGameAssembly.GetType("Microsoft.Xna.Framework.Input.KeyboardInput");
-                    if (keyboardInputType == null) return;
-                    this.ModEntry.Monitor.Log("EventInputButtonReleased keyboardInputType", LogLevel.Debug);
-                    MethodInfo? showAndroidKeyborad = keyboardInputType.GetMethod("Show", BindingFlags.Public | BindingFlags.Static);
-                    if (showAndroidKeyborad == null) return;
-                    this.ModEntry.Monitor.Log("EventInputButtonReleased showAndroidKeyborad", LogLevel.Debug);
-                    Task<string>? key_task = showAndroidKeyborad.Invoke(null, new object[] { "Key", "Enum Keys", this.ButtonKey.ToString(), false }) as Task<string>;
-                    if (key_task == null) return;
-                    this.ModEntry.Monitor.Log("EventInputButtonReleased Invoke task", LogLevel.Debug);
-                    key_task.ContinueWith(s =>
-                    {
-                        if (Enum.TryParse(s.Result, ignoreCase: true, out SButton buttonKey))
-                        {
-                            this.ButtonKey = buttonKey;
-                            this.Alias = this.ButtonKey.ToString();
-                            this.PaddingAlias = this.Alias;
-                            Task<string>? descript_task = showAndroidKeyborad.Invoke(null, new object[] { "Description", "description", Alias, false }) as Task<string>;
-                            descript_task.ContinueWith(ss => {
-                                this.Alias = ss.Result;
-                                this.PaddingAlias = Alias;
-                                CalcBounds(this.OutterBounds.X, this.OutterBounds.Y);
-                                ModEntry.UpdateAllButtons();
-                            });
-                        }
-                    });
-                    
-                }
+                ChangeButtonValue();
             }
             else
             {

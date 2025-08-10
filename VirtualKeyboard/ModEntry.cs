@@ -73,8 +73,11 @@ namespace VirtualKeyboard
 
             VirtualButton EditVirtualButton = new VirtualButton(0, new Pos(0, 0), "edit button");
             this.ControlButtons.Add(new ControlButton(this, helper, EditVirtualButton, this.ModConfig.AboveMenu, EditButtonPressed));
-            VirtualButton AddVirtualButton = new VirtualButton(0, new Pos(0, 0), "add button");
-            this.ControlButtons.Add(new ControlButton(this, helper, AddVirtualButton, this.ModConfig.AboveMenu, AddButtonPressed));
+            if (Constants.TargetPlatform == GamePlatform.Android)
+            {
+                VirtualButton AddVirtualButton = new VirtualButton(0, new Pos(0, 0), "add button");
+                this.ControlButtons.Add(new ControlButton(this, helper, AddVirtualButton, this.ModConfig.AboveMenu, AddButtonPressed));
+            }
 
             Texture2D texture = helper.ModContent.Load<Texture2D>("assets/togglebutton.png");
             VirtualToggleButtonBound = new Rectangle(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y, this.ModConfig.vToggle.rectangle.Width, this.ModConfig.vToggle.rectangle.Height);
@@ -116,6 +119,18 @@ namespace VirtualKeyboard
 
         private void AddButtonPressed()
         {
+            VirtualButton newVirtualButton = new VirtualButton(0, new Pos(0, 0), "");
+            KeyButton newButton = new KeyButton(this, this.Helper, newVirtualButton, this.ModConfig.AboveMenu);
+            
+            KeyButton last_control_button = ControlButtons.Last();
+            int offsetX = last_control_button.OutterBounds.X + last_control_button.OutterBounds.Width + 10;
+            int offsetY = last_control_button.OutterBounds.Y;
+            newButton.CalcBounds(offsetX, offsetY);
+            newButton.Hidden = false;
+            this.ModConfig.Buttons.Add(newVirtualButton);
+            this.Buttons.Add(newButton);
+            newButton.ChangeButtonValue();
+
             this.Helper.Input.Suppress(SButton.MouseLeft);
         }
 
