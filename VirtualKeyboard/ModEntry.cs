@@ -45,6 +45,8 @@ namespace VirtualKeyboard
                 }
                 else
                 {
+                    this.ModConfig.Buttons[index].key = this.Buttons[index].ButtonKey;
+                    this.ModConfig.Buttons[index].alias = this.Buttons[index].Alias;
                     this.ModConfig.Buttons[index].pos.X = this.Buttons[index].OutterBounds.X;
                     this.ModConfig.Buttons[index].pos.Y = this.Buttons[index].OutterBounds.Y;
                     index++;
@@ -161,7 +163,7 @@ namespace VirtualKeyboard
 
         private void OnMenuChanged(object? sender, MenuChangedEventArgs e)
         {
-            if (e.NewMenu is VirtualKeyboardMenu || e.NewMenu == null)
+            if (e.NewMenu is VirtualKeyboardMenu || e.OldMenu is VirtualKeyboardMenu)
             {
 
             }
@@ -169,7 +171,7 @@ namespace VirtualKeyboard
             {
                 HideAllButtons(true);
                 this.EnabledStage = 0;
-                EnableMenu = true;
+                EnableMenu = e.NewMenu != null;
             }
         }
 

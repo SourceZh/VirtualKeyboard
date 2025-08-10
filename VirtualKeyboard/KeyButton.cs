@@ -16,9 +16,10 @@ namespace VirtualKeyboard
         public bool EditButton;
         public Rectangle OutterBounds;
         private Rectangle InnerBounds;
-        private readonly SButton ButtonKey;
+        public SButton ButtonKey;
         private readonly float Transparency;
-        private string Alias;
+        public string Alias;
+        private string PaddingAlias;
         private readonly IModHelper Helper;
         private readonly float ButtonScale;
         private int AboveMenu;
@@ -26,6 +27,8 @@ namespace VirtualKeyboard
         private ModEntry ModEntry;
         private Vector2 MouseOffset = new Vector2(0);
         private bool SelectButton = false;
+        private int LastPressTick = 0;
+        private Rectangle BeforeOutterBounds = new Rectangle(0, 0, 0, 0);
 
         public KeyButton(ModEntry modEntry, IModHelper helper, ModConfig.VirtualButton buttonDefine, int aboveMenu)
         {
@@ -35,6 +38,7 @@ namespace VirtualKeyboard
             this.EditButton = false;
             this.ButtonKey = buttonDefine.key;
             this.Alias = buttonDefine.alias != "" ? buttonDefine.alias : this.ButtonKey.ToString();
+            this.PaddingAlias = this.Alias;
             this.OutterBounds.X = buttonDefine.pos.X;
             this.OutterBounds.Y = buttonDefine.pos.Y;
             this.Helper = helper;
@@ -59,15 +63,15 @@ namespace VirtualKeyboard
                 return false;
             }
 
-            Vector2 bounds = Game1.smallFont.MeasureString(this.Alias);
+            Vector2 bounds = Game1.smallFont.MeasureString(this.PaddingAlias);
             while (bounds.X < bounds.Y)
             {
-                string padding_alias = " " + this.Alias + " ";
-                Vector2 padding_bounds = Game1.smallFont.MeasureString(padding_alias);
-                if (padding_bounds.X < padding_bounds.Y)
+                string paddingAlias = " " + this.PaddingAlias + " ";
+                Vector2 paddingBounds = Game1.smallFont.MeasureString(paddingAlias);
+                if (paddingBounds.X < paddingBounds.Y)
                 {
-                    this.Alias = padding_alias;
-                    bounds = padding_bounds;
+                    this.PaddingAlias = paddingAlias;
+                    bounds = paddingBounds;
                 }
                 else
                 {
@@ -108,8 +112,11 @@ namespace VirtualKeyboard
             Rectangle checkBound = bound;
             checkBound.X += this.ModEntry.ToolbarOffset.X;
             checkBound.Y += this.ModEntry.ToolbarOffset.Y;
-            if (!checkBound.Contains(screenPixels.X, screenPixels.Y))
+            int ticks = Game1.ticks;
+            if (ticks - this.LastPressTick <= 6 || !checkBound.Contains(screenPixels.X, screenPixels.Y))
                 return false;
+
+            LastPressTick = ticks;
             MouseOffset.X = screenPixels.X - bound.X;
             MouseOffset.Y = screenPixels.Y - bound.Y;
             return true;
@@ -146,6 +153,11 @@ namespace VirtualKeyboard
                 {
                     // move button
                     this.SelectButton = ShouldTrigger(screenPixels, this.OutterBounds);
+                    if (this.SelectButton) {
+                        this.BeforeOutterBounds.X = this.OutterBounds.X;
+                        this.BeforeOutterBounds.Y = this.OutterBounds.Y;
+                    }
+                    this.ModEntry.Monitor.Log("EventInputButtonPressed" + Alias, LogLevel.Debug);
                 }
             }
             else
@@ -167,8 +179,47 @@ namespace VirtualKeyboard
                 return;
             if (!this.SelectButton)
                 return;
+            this.ModEntry.Monitor.Log("EventInputButtonReleased" + Alias, LogLevel.Debug);
             this.SelectButton = false;
-            this.ModEntry.UpdateAllButtons();
+            int ticks = Game1.ticks;
+            if (ticks - this.LastPressTick > 24 && this.BeforeOutterBounds.X == this.OutterBounds.X && this.BeforeOutterBounds.Y == this.OutterBounds.Y)
+            {
+                if (Constants.TargetPlatform == GamePlatform.Android)
+                {
+                    this.ModEntry.Monitor.Log("EventInputButtonReleased Android", LogLevel.Debug);
+                    Assembly monoGameAssembly = Assembly.Load("MonoGame.Framework");
+                    Type? keyboardInputType = monoGameAssembly.GetType("Microsoft.Xna.Framework.Input.KeyboardInput");
+                    if (keyboardInputType == null) return;
+                    this.ModEntry.Monitor.Log("EventInputButtonReleased keyboardInputType", LogLevel.Debug);
+                    MethodInfo? showAndroidKeyborad = keyboardInputType.GetMethod("Show", BindingFlags.Public | BindingFlags.Static);
+                    if (showAndroidKeyborad == null) return;
+                    this.ModEntry.Monitor.Log("EventInputButtonReleased showAndroidKeyborad", LogLevel.Debug);
+                    Task<string>? key_task = showAndroidKeyborad.Invoke(null, new object[] { "Key", "Enum Keys", this.ButtonKey.ToString(), false }) as Task<string>;
+                    if (key_task == null) return;
+                    this.ModEntry.Monitor.Log("EventInputButtonReleased Invoke task", LogLevel.Debug);
+                    key_task.ContinueWith(s =>
+                    {
+                        if (Enum.TryParse(s.Result, ignoreCase: true, out SButton buttonKey))
+                        {
+                            this.ButtonKey = buttonKey;
+                            this.Alias = this.ButtonKey.ToString();
+                            this.PaddingAlias = this.Alias;
+                            Task<string>? descript_task = showAndroidKeyborad.Invoke(null, new object[] { "Description", "description", Alias, false }) as Task<string>;
+                            descript_task.ContinueWith(ss => {
+                                this.Alias = ss.Result;
+                                this.PaddingAlias = Alias;
+                                CalcBounds(this.OutterBounds.X, this.OutterBounds.Y);
+                                ModEntry.UpdateAllButtons();
+                            });
+                        }
+                    });
+                    
+                }
+            }
+            else
+            {
+                this.ModEntry.UpdateAllButtons();
+            }
         }
         private Rectangle CalBoundFromUIScale(Rectangle bound)
         {
@@ -188,7 +239,7 @@ namespace VirtualKeyboard
             Rectangle offsetCloseButtonBounds = this.CloseButtonBounds;
             offsetCloseButtonBounds.X += this.ModEntry.ToolbarOffset.X;
             offsetCloseButtonBounds.Y += this.ModEntry.ToolbarOffset.Y;
-            Rectangle UIScaleCloseButtonBoundsRectangle = CalBoundFromUIScale(this.CloseButtonBounds);
+            Rectangle UIScaleCloseButtonBoundsRectangle = CalBoundFromUIScale(offsetCloseButtonBounds);
             e.SpriteBatch.Draw(Game1.mouseCursors, UIScaleCloseButtonBoundsRectangle, new Rectangle(337, 494, 12, 12), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
         }
 
@@ -210,7 +261,7 @@ namespace VirtualKeyboard
             float UIScale = Utility.ModifyCoordinateFromUIScale(this.ButtonScale);
             Vector2 offsetInnerBounds = new Vector2(this.ModEntry.ToolbarOffset.X + this.InnerBounds.X, this.ModEntry.ToolbarOffset.Y + this.InnerBounds.Y);
             Vector2 UIScaleInnerBounds = Utility.ModifyCoordinatesFromUIScale(offsetInnerBounds);
-            e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
+            e.SpriteBatch.DrawString(Game1.smallFont, this.PaddingAlias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
 
             OnRenderedCloseButton(e);
         }
@@ -241,7 +292,7 @@ namespace VirtualKeyboard
             //e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, new Vector2(this.InnerBounds.X, this.InnerBounds.Y), Game1.textColor);
             float UIScale = this.ButtonScale;
             Vector2 UIScaleInnerBounds = new Vector2(this.ModEntry.ToolbarOffset.X + this.InnerBounds.X, this.ModEntry.ToolbarOffset.Y + this.InnerBounds.Y);
-            e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
+            e.SpriteBatch.DrawString(Game1.smallFont, this.PaddingAlias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
 
             OnRenderedActiveMenuCloseButton(e);
         }
