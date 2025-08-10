@@ -147,6 +147,9 @@ namespace VirtualKeyboard
         {
             if (!this.EditButton)
                 return;
+            Rectangle offsetCloseButtonBounds = this.CloseButtonBounds;
+            offsetCloseButtonBounds.X += this.ModEntry.ToolbarOffset.X;
+            offsetCloseButtonBounds.Y += this.ModEntry.ToolbarOffset.Y;
             Rectangle UIScaleCloseButtonBoundsRectangle = CalBoundFromUIScale(this.CloseButtonBounds);
             e.SpriteBatch.Draw(Game1.mouseCursors, UIScaleCloseButtonBoundsRectangle, new Rectangle(337, 494, 12, 12), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
         }
@@ -164,12 +167,16 @@ namespace VirtualKeyboard
                 return;
 
             //e.SpriteBatch.Draw(Game1.menuTexture, OutterBounds, new Rectangle(0, 256, 60, 60), Color.White);
-            Rectangle UIScaleOutterBoundsRectangle = CalBoundFromUIScale(this.OutterBounds);
+            Rectangle offsetOutterBounds = this.OutterBounds;
+            offsetOutterBounds.X += this.ModEntry.ToolbarOffset.X;
+            offsetOutterBounds.Y += this.ModEntry.ToolbarOffset.Y;
+            Rectangle UIScaleOutterBoundsRectangle = CalBoundFromUIScale(offsetOutterBounds);
             e.SpriteBatch.Draw(Game1.menuTexture, UIScaleOutterBoundsRectangle, new Rectangle(0, 256, 60, 60), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
 
             //e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, new Vector2(this.InnerBounds.X, this.InnerBounds.Y), Game1.textColor);
             float UIScale = Utility.ModifyCoordinateFromUIScale(this.ButtonScale);
-            Vector2 UIScaleInnerBounds = Utility.ModifyCoordinatesFromUIScale(new Vector2(this.InnerBounds.X, this.InnerBounds.Y));
+            Vector2 offsetInnerBounds = new Vector2(this.ModEntry.ToolbarOffset.X + this.InnerBounds.X, this.ModEntry.ToolbarOffset.Y + this.InnerBounds.Y);
+            Vector2 UIScaleInnerBounds = Utility.ModifyCoordinatesFromUIScale(offsetInnerBounds);
             e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
 
             OnRenderedCloseButton(e);
@@ -180,6 +187,8 @@ namespace VirtualKeyboard
             if (!this.EditButton)
                 return;
             Rectangle UIScaleCloseButtonBoundsRectangle = this.CloseButtonBounds;
+            UIScaleCloseButtonBoundsRectangle.X += this.ModEntry.ToolbarOffset.X;
+            UIScaleCloseButtonBoundsRectangle.Y += this.ModEntry.ToolbarOffset.Y;
             e.SpriteBatch.Draw(Game1.mouseCursors, UIScaleCloseButtonBoundsRectangle, new Rectangle(337, 494, 12, 12), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
         }
 
@@ -197,11 +206,13 @@ namespace VirtualKeyboard
 
             //e.SpriteBatch.Draw(Game1.menuTexture, OutterBounds, new Rectangle(0, 256, 60, 60), Color.White);
             Rectangle UIScaleOutterBoundsRectangle = this.OutterBounds;
+            UIScaleOutterBoundsRectangle.X += this.ModEntry.ToolbarOffset.X;
+            UIScaleOutterBoundsRectangle.Y += this.ModEntry.ToolbarOffset.Y;
             e.SpriteBatch.Draw(Game1.menuTexture, UIScaleOutterBoundsRectangle, new Rectangle(0, 256, 60, 60), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
 
             //e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, new Vector2(this.InnerBounds.X, this.InnerBounds.Y), Game1.textColor);
             float UIScale = this.ButtonScale;
-            Vector2 UIScaleInnerBounds = new Vector2(this.InnerBounds.X, this.InnerBounds.Y);
+            Vector2 UIScaleInnerBounds = new Vector2(this.ModEntry.ToolbarOffset.X + this.InnerBounds.X, this.ModEntry.ToolbarOffset.Y + this.InnerBounds.Y);
             e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
 
             OnRenderedActiveMenuCloseButton(e);

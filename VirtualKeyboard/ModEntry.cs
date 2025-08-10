@@ -18,7 +18,7 @@ namespace VirtualKeyboard
     {
         private ModConfig ModConfig = new ModConfig();
         private List<KeyButton> Buttons = new List<KeyButton>();
-        private List<KeyButton> controlButtons = new List<KeyButton>();
+        private List<KeyButton> ControlButtons = new List<KeyButton>();
         private ClickableTextureComponent? VirtualToggleButton;
         private int EnabledStage = 0;
         private int LastPressTick = 0;
@@ -29,9 +29,9 @@ namespace VirtualKeyboard
         private int ToolbarHeight = 0;
         private Rectangle VirtualToggleButtonBound;
         private bool EnableMenu = false;
-        private Rectangle EditButtonBound, AddButtonBound;
         private bool EnableEditButton = false;
         private IModHelper Helper;
+        public Point ToolbarOffset = new Point(0);
 
         public void UpdateAllButtons()
         {
@@ -68,9 +68,9 @@ namespace VirtualKeyboard
             }
 
             VirtualButton EditVirtualButton = new VirtualButton(0, new Pos(0, 0), "edit button");
-            this.controlButtons.Add(new ControlButton(this, helper, EditVirtualButton, this.ModConfig.AboveMenu, EditButtonPressed));
+            this.ControlButtons.Add(new ControlButton(this, helper, EditVirtualButton, this.ModConfig.AboveMenu, EditButtonPressed));
             VirtualButton AddVirtualButton = new VirtualButton(0, new Pos(0, 0), "add button");
-            this.controlButtons.Add(new ControlButton(this, helper, AddVirtualButton, this.ModConfig.AboveMenu, AddButtonPressed));
+            this.ControlButtons.Add(new ControlButton(this, helper, AddVirtualButton, this.ModConfig.AboveMenu, AddButtonPressed));
 
             Texture2D texture = helper.ModContent.Load<Texture2D>("assets/togglebutton.png");
             VirtualToggleButtonBound = new Rectangle(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y, this.ModConfig.vToggle.rectangle.Width, this.ModConfig.vToggle.rectangle.Height);
@@ -106,7 +106,7 @@ namespace VirtualKeyboard
         {
             foreach (KeyButton keyButton in this.Buttons)
                 keyButton.Hidden = isShow;
-            foreach (ControlButton controlButton in this.controlButtons)
+            foreach (ControlButton controlButton in this.ControlButtons)
                 controlButton.Hidden = isShow;
         }
 
@@ -247,35 +247,25 @@ namespace VirtualKeyboard
                 int currentToolbarPaddingX = 0;
                 Type Game1Type = typeof(Game1);
                 FieldInfo? toolbarPaddingXField = Game1Type.GetField("toolbarPaddingX", BindingFlags.Public | BindingFlags.Static);
-                if (toolbarPaddingXField != null)
-                {
-                    currentToolbarPaddingX = Convert.ToInt32(toolbarPaddingXField.GetValue(null));
-                }
+                currentToolbarPaddingX = (toolbarPaddingXField != null) ? Convert.ToInt32(toolbarPaddingXField.GetValue(null)) : 0;
 
-                int OffsetX = this.ModConfig.vToggle.rectangle.X;
-                if (ToolbarVertical)
-                {
-                    OffsetX += currentToolbarPaddingX + ToolbarItemSlotSize + 20;
-                }
-                VirtualToggleButtonBound.X = OffsetX;
+                ToolbarOffset.X = ToolbarVertical ? currentToolbarPaddingX + ToolbarItemSlotSize + 20 : 0;
+                ToolbarOffset.Y = (!ToolbarVertical && ToolbarAlignTop) ? ToolbarHeight + 16 : 0;
 
-                int OffsetY = this.ModConfig.vToggle.rectangle.Y;
-                if (ToolbarAlignTop && !ToolbarVertical)
-                {
-                    OffsetY += ToolbarHeight + 16;
-                }
-                VirtualToggleButtonBound.Y = OffsetY;
-                OffsetY += this.ModConfig.vToggle.rectangle.Height + 4;
+                VirtualToggleButtonBound.X = ToolbarOffset.X + this.ModConfig.vToggle.rectangle.X;
+                VirtualToggleButtonBound.Y = ToolbarOffset.Y + this.ModConfig.vToggle.rectangle.Y;
 
-                int controlButtonsOffsetX = VirtualToggleButtonBound.X + VirtualToggleButtonBound.Width + 10;
-                int controlButtonsOffsetY = VirtualToggleButtonBound.Y;
-                CalButtonBounds(controlButtonsOffsetX, controlButtonsOffsetY, ref this.controlButtons);
+                int controlButtonsOffsetX = this.ModConfig.vToggle.rectangle.X + VirtualToggleButtonBound.Width + 10;
+                int controlButtonsOffsetY = this.ModConfig.vToggle.rectangle.Y;
+                CalButtonBounds(controlButtonsOffsetX, controlButtonsOffsetY, ref this.ControlButtons);
 
-                bool calSucceed = this.ModConfig.init ? CalButtonBounds(ref this.Buttons) : CalButtonBounds(OffsetX, OffsetY, ref this.Buttons, true);
+                int buttonsOffsetX = this.ModConfig.vToggle.rectangle.X;
+                int buttonsOffsetY = this.ModConfig.vToggle.rectangle.Y + this.ModConfig.vToggle.rectangle.Height + 4;
+                bool calSucceed = this.ModConfig.Init ? CalButtonBounds(ref this.Buttons) : CalButtonBounds(buttonsOffsetX, buttonsOffsetY, ref this.Buttons, true);
                 FirstRender = !calSucceed;
                 if (!FirstRender)
                 {
-                    this.ModConfig.init = true;
+                    this.ModConfig.Init = true;
                     this.Helper.WriteConfig<ModConfig>(this.ModConfig);
                 }
             }

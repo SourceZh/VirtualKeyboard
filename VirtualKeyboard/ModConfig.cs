@@ -6,7 +6,7 @@ namespace VirtualKeyboard
     internal class ModConfig
     {
         public Toggle vToggle { get; set; } = new Toggle((SButton)0, new Rect(Constants.TargetPlatform == GamePlatform.Android ? 96 : 36, 12, 64, 64));
-        public bool init { get; set; } = false;
+        public bool Init { get; set; } = false;
         public int AboveMenu { get; set; } = 0;
         public float ButtonScale { get; set; } = 1.0f;
         public List<VirtualButton> Buttons { get; set; } = new List<VirtualButton>{
