@@ -36,7 +36,7 @@ namespace VirtualKeyboard
         public void UpdateAllButtons()
         {
             int index = 0;
-            while(index < this.ModConfig.Buttons.Count)
+            while (index < this.ModConfig.Buttons.Count)
             {
                 if (this.Buttons[index].Deleted)
                 {
@@ -45,6 +45,8 @@ namespace VirtualKeyboard
                 }
                 else
                 {
+                    this.ModConfig.Buttons[index].pos.X = this.Buttons[index].OutterBounds.X;
+                    this.ModConfig.Buttons[index].pos.Y = this.Buttons[index].OutterBounds.Y;
                     index++;
                 }
             }
@@ -75,7 +77,6 @@ namespace VirtualKeyboard
             Texture2D texture = helper.ModContent.Load<Texture2D>("assets/togglebutton.png");
             VirtualToggleButtonBound = new Rectangle(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y, this.ModConfig.vToggle.rectangle.Width, this.ModConfig.vToggle.rectangle.Height);
             this.VirtualToggleButton = new ClickableTextureComponent(VirtualToggleButtonBound, texture, new Rectangle(0, 0, 16, 16), 4f, false);
-
             //helper.WriteConfig<ModConfig>(this.ModConfig);
 
             helper.Events.Display.Rendered += this.Rendered;
@@ -86,9 +87,23 @@ namespace VirtualKeyboard
 
         private void ChangeEditButton(bool isChange)
         {
+            if (isChange)
+            {
+                if (Game1.activeClickableMenu != null)
+                {
+                    Game1.exitActiveMenu();
+                }
+                Game1.activeClickableMenu = new VirtualKeyboardMenu(0, 0, Game1.viewport.Width, Game1.viewport.Height);
+            }
+            else
+            {
+                Game1.exitActiveMenu();
+            }
+
             EnableEditButton = isChange;
             foreach (KeyButton keyButton in this.Buttons)
                 keyButton.EditButton = EnableEditButton;
+
         }
 
         private void EditButtonPressed()
@@ -102,12 +117,12 @@ namespace VirtualKeyboard
             this.Helper.Input.Suppress(SButton.MouseLeft);
         }
 
-        private void ShowAllButtons(bool isShow)
+        private void HideAllButtons(bool isHide)
         {
             foreach (KeyButton keyButton in this.Buttons)
-                keyButton.Hidden = isShow;
+                keyButton.Hidden = isHide;
             foreach (ControlButton controlButton in this.ControlButtons)
-                controlButton.Hidden = isShow;
+                controlButton.Hidden = isHide;
         }
 
         private void VirtualToggleButtonPressed(object? sender, ButtonPressedEventArgs e)
@@ -124,7 +139,7 @@ namespace VirtualKeyboard
             Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
             if (e.Button == this.ModConfig.vToggle.key || ShouldTrigger(VirtualToggleButtonBound, screenPixels))
             {
-                ShowAllButtons(Convert.ToBoolean(this.EnabledStage));
+                HideAllButtons(Convert.ToBoolean(this.EnabledStage));
                 this.EnabledStage = 1 - this.EnabledStage;
                 this.Helper.Input.Suppress(SButton.MouseLeft);
                 if (this.EnabledStage == 0)
@@ -146,9 +161,16 @@ namespace VirtualKeyboard
 
         private void OnMenuChanged(object? sender, MenuChangedEventArgs e)
         {
-            ShowAllButtons(true);
-            this.EnabledStage = 0;
-            EnableMenu = e.NewMenu != null;
+            if (e.NewMenu is VirtualKeyboardMenu || e.NewMenu == null)
+            {
+
+            }
+            else
+            {
+                HideAllButtons(true);
+                this.EnabledStage = 0;
+                EnableMenu = true;
+            }
         }
 
         private bool CalToolbarSize(bool needRecal)
@@ -202,7 +224,7 @@ namespace VirtualKeyboard
                     break;
                 }
             }
-            
+
             return RecalButtonPosition;
         }
 
@@ -246,10 +268,9 @@ namespace VirtualKeyboard
 
             if (RecalButtonPosition)
             {
-                int currentToolbarPaddingX = 0;
                 Type Game1Type = typeof(Game1);
                 FieldInfo? toolbarPaddingXField = Game1Type.GetField("toolbarPaddingX", BindingFlags.Public | BindingFlags.Static);
-                currentToolbarPaddingX = (toolbarPaddingXField != null) ? Convert.ToInt32(toolbarPaddingXField.GetValue(null)) : 0;
+                int currentToolbarPaddingX = (toolbarPaddingXField != null) ? Convert.ToInt32(toolbarPaddingXField.GetValue(null)) : 0;
 
                 ToolbarOffset.X = ToolbarVertical ? currentToolbarPaddingX + ToolbarItemSlotSize + 20 : 0;
                 ToolbarOffset.Y = (!ToolbarVertical && ToolbarAlignTop) ? ToolbarHeight + 16 : 0;

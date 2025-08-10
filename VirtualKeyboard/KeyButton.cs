@@ -4,6 +4,7 @@ using StardewModdingAPI;
 using StardewValley;
 using System.Reflection;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 
 namespace VirtualKeyboard
 {
@@ -23,6 +24,8 @@ namespace VirtualKeyboard
         private int AboveMenu;
         private Rectangle CloseButtonBounds;
         private ModEntry ModEntry;
+        private Vector2 MouseOffset = new Vector2(0);
+        private bool SelectButton = false;
 
         public KeyButton(ModEntry modEntry, IModHelper helper, ModConfig.VirtualButton buttonDefine, int aboveMenu)
         {
@@ -42,6 +45,8 @@ namespace VirtualKeyboard
             helper.Events.Display.Rendered += this.OnRendered;
             helper.Events.Display.RenderedActiveMenu += this.OnRenderedActiveMenu;
             helper.Events.Input.ButtonPressed += this.EventInputButtonPressed;
+            helper.Events.Input.ButtonReleased += this.EventInputButtonReleased;
+            helper.Events.Input.CursorMoved += this.OnCursorMoved;
         }
 
         public bool CalcBounds(int x, int y)
@@ -87,6 +92,17 @@ namespace VirtualKeyboard
             return true;
         }
 
+        public bool IsShowButton()
+        {
+            if (Deleted)
+                return false;
+            // ignore if player hasn't loaded a save yet
+            if (!Context.IsWorldReady)
+                return false;
+            if (this.Hidden)
+                return false;
+            return true;
+        }
         private bool ShouldTrigger(Vector2 screenPixels, Rectangle bound)
         {
             Rectangle checkBound = bound;
@@ -94,6 +110,8 @@ namespace VirtualKeyboard
             checkBound.Y += this.ModEntry.ToolbarOffset.Y;
             if (!checkBound.Contains(screenPixels.X, screenPixels.Y))
                 return false;
+            MouseOffset.X = screenPixels.X - bound.X;
+            MouseOffset.Y = screenPixels.Y - bound.Y;
             return true;
         }
 
@@ -111,21 +129,23 @@ namespace VirtualKeyboard
         {
             if (e.Button != SButton.MouseLeft)
                 return;
-            if (Deleted)
-                return;
-            // ignore if player hasn't loaded a save yet
-            if (!Context.IsWorldReady)
-                return;
-            if (this.Hidden)
+            if (!IsShowButton())
                 return;
             Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
 
             if (this.EditButton)
             {
+                // delete button
                 if (ShouldTrigger(screenPixels, this.CloseButtonBounds))
                 {
                     this.Deleted = true;
-                    ModEntry.UpdateAllButtons();
+                    this.ModEntry.UpdateAllButtons();
+                    this.Helper.Input.Suppress(SButton.MouseLeft);
+                }
+                else
+                {
+                    // move button
+                    this.SelectButton = ShouldTrigger(screenPixels, this.OutterBounds);
                 }
             }
             else
@@ -137,6 +157,19 @@ namespace VirtualKeyboard
             }
         }
 
+        private void EventInputButtonReleased(object? sender, ButtonReleasedEventArgs e)
+        {
+            if (e.Button != SButton.MouseLeft)
+                return;
+            if (!IsShowButton())
+                return;
+            if (!this.EditButton)
+                return;
+            if (!this.SelectButton)
+                return;
+            this.SelectButton = false;
+            this.ModEntry.UpdateAllButtons();
+        }
         private Rectangle CalBoundFromUIScale(Rectangle bound)
         {
             Rectangle CalBound;
@@ -163,12 +196,7 @@ namespace VirtualKeyboard
         {
             if (this.AboveMenu != 0)
                 return;
-            if (Deleted)
-                return;
-            // ignore if player hasn't loaded a save yet
-            if (!Context.IsWorldReady)
-                return;
-            if (this.Hidden)
+            if (!IsShowButton())
                 return;
 
             //e.SpriteBatch.Draw(Game1.menuTexture, OutterBounds, new Rectangle(0, 256, 60, 60), Color.White);
@@ -201,12 +229,7 @@ namespace VirtualKeyboard
         {
             if (this.AboveMenu == 0)
                 return;
-            if (Deleted)
-                return;
-            // ignore if player hasn't loaded a save yet
-            if (!Context.IsWorldReady)
-                return;
-            if (this.Hidden)
+            if (!IsShowButton())
                 return;
 
             //e.SpriteBatch.Draw(Game1.menuTexture, OutterBounds, new Rectangle(0, 256, 60, 60), Color.White);
@@ -221,6 +244,20 @@ namespace VirtualKeyboard
             e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
 
             OnRenderedActiveMenuCloseButton(e);
+        }
+
+        private void OnCursorMoved(object? sender, CursorMovedEventArgs e)
+        {
+            if (!IsShowButton())
+                return;
+            if (!this.EditButton)
+                return;
+            if (!this.SelectButton)
+                return;
+            Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.NewPosition.ScreenPixels);
+            this.OutterBounds.X = (int)(screenPixels.X - MouseOffset.X);
+            this.OutterBounds.Y = (int)(screenPixels.Y - MouseOffset.Y);
+            CalcBounds(this.OutterBounds.X, this.OutterBounds.Y);
         }
     }
 }
