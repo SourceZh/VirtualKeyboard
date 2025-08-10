@@ -89,7 +89,10 @@ namespace VirtualKeyboard
 
         private bool ShouldTrigger(Vector2 screenPixels, Rectangle bound)
         {
-            if (!bound.Contains(screenPixels.X, screenPixels.Y))
+            Rectangle checkBound = bound;
+            checkBound.X += this.ModEntry.ToolbarOffset.X;
+            checkBound.Y += this.ModEntry.ToolbarOffset.Y;
+            if (!checkBound.Contains(screenPixels.X, screenPixels.Y))
                 return false;
             return true;
         }
