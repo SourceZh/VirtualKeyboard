@@ -6,18 +6,27 @@ namespace VirtualKeyboard
     internal class ModConfig
     {
         public Toggle vToggle { get; set; } = new Toggle((SButton)0, new Rect(Constants.TargetPlatform == GamePlatform.Android ? 96 : 36, 12, 64, 64));
+        public bool init { get; set; } = false;
         public int AboveMenu { get; set; } = 0;
         public float ButtonScale { get; set; } = 1.0f;
-        public List<List<VirtualButton>> Buttons { get; set; } = new List<List<VirtualButton>>
-        {
-            new List<VirtualButton>{
-              new VirtualButton((SButton) 80),
-              new VirtualButton((SButton) 73),
-              new VirtualButton((SButton) 79),
-              new VirtualButton((SButton) 81)
-            }
+        public List<VirtualButton> Buttons { get; set; } = new List<VirtualButton>{
+              new VirtualButton((SButton) 80, new Pos(0, 0)),
+              new VirtualButton((SButton) 73, new Pos(0, 0)),
+              new VirtualButton((SButton) 79, new Pos(0, 0)),
+              new VirtualButton((SButton) 81, new Pos(0, 0))
         };
 
+        internal class Pos
+        {
+            public int X;
+            public int Y;
+
+            public Pos(int x, int y)
+            {
+                X = x;
+                Y = y;
+            }
+        }
         internal class Rect
         {
             public int X;
@@ -49,12 +58,16 @@ namespace VirtualKeyboard
         {
             public SButton key { get; set; }
             public string alias { get; set; }
+            public Pos pos { get; set; }
             public VirtualButton(
               SButton key,
-              string alias = "")
+              Pos pos,
+              string alias = ""
+              )
             {
                 this.key = key;
                 this.alias = alias;
+                this.pos = pos;
             }
         }
     }

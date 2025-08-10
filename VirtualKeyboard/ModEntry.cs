@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -15,7 +17,8 @@ namespace VirtualKeyboard
     internal sealed class ModEntry : Mod
     {
         private ModConfig ModConfig = new ModConfig();
-        private List<List<KeyButton>> Buttons = new List<List<KeyButton>>();
+        private List<KeyButton> Buttons = new List<KeyButton>();
+        private List<KeyButton> controlButtons = new List<KeyButton>();
         private ClickableTextureComponent? VirtualToggleButton;
         private int EnabledStage = 0;
         private int LastPressTick = 0;
@@ -27,27 +30,22 @@ namespace VirtualKeyboard
         private Rectangle VirtualToggleButtonBound;
         private bool EnableMenu = false;
         private Rectangle EditButtonBound, AddButtonBound;
-        private ToggleButton EditButton, AddButton;
         private bool EnableEditButton = false;
         private IModHelper Helper;
 
         public void UpdateAllButtons()
         {
-            int buttonsLineNumber = this.ModConfig.Buttons.Count;
-            for (int line = 0; line < buttonsLineNumber; line++)
+            int index = 0;
+            while(index < this.ModConfig.Buttons.Count)
             {
-                int index = 0;
-                while(index < this.ModConfig.Buttons[line].Count)
+                if (this.Buttons[index].Deleted)
                 {
-                    if (this.Buttons[line][index].Deleted)
-                    {
-                        this.Buttons[line].RemoveAt(index);
-                        this.ModConfig.Buttons[line].RemoveAt(index);
-                    }
-                    else
-                    {
-                        index++;
-                    }
+                    this.Buttons.RemoveAt(index);
+                    this.ModConfig.Buttons.RemoveAt(index);
+                }
+                else
+                {
+                    index++;
                 }
             }
 
@@ -64,24 +62,21 @@ namespace VirtualKeyboard
             this.Helper = helper;
             this.ModConfig = Helper.ReadConfig<ModConfig>();
             int buttonsLineNumber = this.ModConfig.Buttons.Count;
-            for (int line = 0; line < buttonsLineNumber; line++)
+            for (int index = 0; index < buttonsLineNumber; index++)
             {
-                this.Buttons.Add(new List<KeyButton>());
-                for (int index = 0; index < this.ModConfig.Buttons[line].Count; ++index)
-                {
-                    this.Buttons[line].Add(new KeyButton(this, helper, this.ModConfig.Buttons[line][index], this.ModConfig.AboveMenu));
-                }
+                this.Buttons.Add(new KeyButton(this, helper, this.ModConfig.Buttons[index], this.ModConfig.AboveMenu));
             }
+
+            VirtualButton EditVirtualButton = new VirtualButton(0, new Pos(0, 0), "edit button");
+            this.controlButtons.Add(new ControlButton(this, helper, EditVirtualButton, this.ModConfig.AboveMenu, EditButtonPressed));
+            VirtualButton AddVirtualButton = new VirtualButton(0, new Pos(0, 0), "add button");
+            this.controlButtons.Add(new ControlButton(this, helper, AddVirtualButton, this.ModConfig.AboveMenu, AddButtonPressed));
 
             Texture2D texture = helper.ModContent.Load<Texture2D>("assets/togglebutton.png");
             VirtualToggleButtonBound = new Rectangle(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y, this.ModConfig.vToggle.rectangle.Width, this.ModConfig.vToggle.rectangle.Height);
             this.VirtualToggleButton = new ClickableTextureComponent(VirtualToggleButtonBound, texture, new Rectangle(0, 0, 16, 16), 4f, false);
-            VirtualButton EditVirtualButton = new VirtualButton(0, "edit button");
-            this.EditButton = new ToggleButton(this, helper, EditVirtualButton, this.ModConfig.AboveMenu, EditButtonPressed);
-            VirtualButton AddVirtualButton = new VirtualButton(0, "add button");
-            this.AddButton = new ToggleButton(this, helper, AddVirtualButton, this.ModConfig.AboveMenu, AddButtonPressed);
 
-            helper.WriteConfig<ModConfig>(this.ModConfig);
+            //helper.WriteConfig<ModConfig>(this.ModConfig);
 
             helper.Events.Display.Rendered += this.Rendered;
             helper.Events.Display.RenderedActiveMenu += this.OnRenderedActiveMenu;
@@ -89,12 +84,11 @@ namespace VirtualKeyboard
             helper.Events.Input.ButtonPressed += this.VirtualToggleButtonPressed;
         }
 
-        private void ChangeEditButton(bool is_change)
+        private void ChangeEditButton(bool isChange)
         {
-            EnableEditButton = is_change;
-            foreach (List<KeyButton> keyButtonList in this.Buttons)
-                foreach (KeyButton keyButton in keyButtonList)
-                    keyButton.EditButton = EnableEditButton;
+            EnableEditButton = isChange;
+            foreach (KeyButton keyButton in this.Buttons)
+                keyButton.EditButton = EnableEditButton;
         }
 
         private void EditButtonPressed()
@@ -108,13 +102,12 @@ namespace VirtualKeyboard
             this.Helper.Input.Suppress(SButton.MouseLeft);
         }
 
-        private void ShowAllButtons(bool is_show)
+        private void ShowAllButtons(bool isShow)
         {
-            foreach (List<KeyButton> keyButtonList in this.Buttons)
-                foreach (KeyButton keyButton in keyButtonList)
-                    keyButton.Hidden = is_show;
-            EditButton.Hidden = is_show;
-            AddButton.Hidden = is_show;
+            foreach (KeyButton keyButton in this.Buttons)
+                keyButton.Hidden = isShow;
+            foreach (ControlButton controlButton in this.controlButtons)
+                controlButton.Hidden = isShow;
         }
 
         private void VirtualToggleButtonPressed(object? sender, ButtonPressedEventArgs e)
@@ -156,56 +149,98 @@ namespace VirtualKeyboard
             EnableMenu = e.NewMenu != null;
         }
 
-        private void CalVirtualToggleButtonPosition()
+        private bool CalToolbarSize(bool needRecal)
         {
-            bool RecalButtonPosition = FirstRender;
-            if (Constants.TargetPlatform == GamePlatform.Android)
+            if (Constants.TargetPlatform != GamePlatform.Android)
+                return needRecal;
+
+            bool RecalButtonPosition = needRecal;
+
+            Type Game1OptionType = Game1.options.GetType();
+            FieldInfo? verticalToolbarField = Game1OptionType.GetField("verticalToolbar");
+
+            if (verticalToolbarField != null)
             {
-                Type Game1OptionType = Game1.options.GetType();
-                FieldInfo? verticalToolbarField = Game1OptionType.GetField("verticalToolbar");
+                bool currentToolbarVertical = Convert.ToBoolean(verticalToolbarField.GetValue(Game1.options));
+                RecalButtonPosition |= (ToolbarVertical != currentToolbarVertical);
+                ToolbarVertical = currentToolbarVertical;
+            }
 
-                if (verticalToolbarField != null)
+            foreach (IClickableMenu onScreenMenu in Game1.onScreenMenus)
+            {
+                if (onScreenMenu is Toolbar)
                 {
-                    bool currentToolbarVertical = Convert.ToBoolean(verticalToolbarField.GetValue(Game1.options));
-                    RecalButtonPosition |= (ToolbarVertical != currentToolbarVertical);
-                    ToolbarVertical = currentToolbarVertical;
-                }
-
-                foreach (IClickableMenu onScreenMenu in Game1.onScreenMenus)
-                {
-                    if (onScreenMenu is Toolbar)
+                    Toolbar toolbar = (Toolbar)onScreenMenu;
+                    Type ToolbarType = toolbar.GetType();
+                    FieldInfo? alignTopField = ToolbarType.GetField("alignTop");
+                    if (alignTopField != null)
                     {
-                        Toolbar toolbar = (Toolbar)onScreenMenu;
-                        Type ToolbarType = toolbar.GetType();
-                        FieldInfo? alignTopField = ToolbarType.GetField("alignTop");
-                        if (alignTopField != null)
-                        {
-                            bool currentAlignTop = Convert.ToBoolean(alignTopField.GetValue(toolbar));
-                            RecalButtonPosition |= (ToolbarAlignTop != currentAlignTop);
-                            ToolbarAlignTop = currentAlignTop;
-                        }
-
-                        PropertyInfo? itemSlotSizeProperty = ToolbarType.GetProperty("itemSlotSize");
-                        if (itemSlotSizeProperty != null)
-                        {
-                            int currentItemSlotSize = Convert.ToInt32(itemSlotSizeProperty.GetValue(toolbar));
-                            RecalButtonPosition |= (ToolbarItemSlotSize != currentItemSlotSize);
-                            ToolbarItemSlotSize = currentItemSlotSize;
-                        }
-
-                        //FieldInfo? toolbarHeightField = ToolbarType.GetField("toolbarHeight");
-                        //if (toolbarHeightField != null)
-                        //{
-                        //    int currentToolbarHeight = Convert.ToInt32(toolbarHeightField.GetValue(toolbar));
-                        //    RecalButtonPosition |= (ToolbarHeight != currentToolbarHeight);
-                        //    ToolbarHeight = currentToolbarHeight;
-                        //}
-                        ToolbarHeight = this.Helper.Reflection.GetField<int>(toolbar, "toolbarHeight").GetValue();
-
-                        break;
+                        bool currentAlignTop = Convert.ToBoolean(alignTopField.GetValue(toolbar));
+                        RecalButtonPosition |= (ToolbarAlignTop != currentAlignTop);
+                        ToolbarAlignTop = currentAlignTop;
                     }
+
+                    PropertyInfo? itemSlotSizeProperty = ToolbarType.GetProperty("itemSlotSize");
+                    if (itemSlotSizeProperty != null)
+                    {
+                        int currentItemSlotSize = Convert.ToInt32(itemSlotSizeProperty.GetValue(toolbar));
+                        RecalButtonPosition |= (ToolbarItemSlotSize != currentItemSlotSize);
+                        ToolbarItemSlotSize = currentItemSlotSize;
+                    }
+
+                    //FieldInfo? toolbarHeightField = ToolbarType.GetField("toolbarHeight");
+                    //if (toolbarHeightField != null)
+                    //{
+                    //    int currentToolbarHeight = Convert.ToInt32(toolbarHeightField.GetValue(toolbar));
+                    //    RecalButtonPosition |= (ToolbarHeight != currentToolbarHeight);
+                    //    ToolbarHeight = currentToolbarHeight;
+                    //}
+                    ToolbarHeight = this.Helper.Reflection.GetField<int>(toolbar, "toolbarHeight").GetValue();
+
+                    break;
                 }
             }
+            
+            return RecalButtonPosition;
+        }
+
+        private bool CalButtonBounds(int X, int Y, ref List<KeyButton> buttons, bool saveConfig = false)
+        {
+            bool allCalc = true;
+            int lineOffsetX = X;
+            for (int index = 0; index < buttons.Count; ++index)
+            {
+                if (!buttons[index].CalcBounds(lineOffsetX, Y))
+                {
+                    allCalc = false;
+                    break;
+                }
+                if (saveConfig)
+                {
+                    this.ModConfig.Buttons[index].pos = new Pos(buttons[index].OutterBounds.X, buttons[index].OutterBounds.Y);
+                }
+                lineOffsetX = buttons[index].OutterBounds.X + buttons[index].OutterBounds.Width + 10;
+            }
+            return allCalc;
+        }
+
+        private bool CalButtonBounds(ref List<KeyButton> buttons)
+        {
+            bool allCalc = true;
+            foreach (KeyButton keyButton in this.Buttons)
+            {
+                if (!keyButton.CalcBounds(keyButton.OutterBounds.X, keyButton.OutterBounds.Y))
+                {
+                    allCalc = false;
+                    break;
+                }
+            }
+            return allCalc;
+        }
+
+        private void CalVirtualToggleButtonPosition()
+        {
+            bool RecalButtonPosition = CalToolbarSize(FirstRender);
 
             if (RecalButtonPosition)
             {
@@ -232,36 +267,17 @@ namespace VirtualKeyboard
                 VirtualToggleButtonBound.Y = OffsetY;
                 OffsetY += this.ModConfig.vToggle.rectangle.Height + 4;
 
-                EditButtonBound.X = VirtualToggleButtonBound.X + VirtualToggleButtonBound.Width + 10;
-                EditButtonBound.Y = VirtualToggleButtonBound.Y;
-                if (this.EditButton.CalcBounds(EditButtonBound.X, EditButtonBound.Y))
-                {
-                    EditButtonBound = this.EditButton.OutterBounds;
-                }
+                int controlButtonsOffsetX = VirtualToggleButtonBound.X + VirtualToggleButtonBound.Width + 10;
+                int controlButtonsOffsetY = VirtualToggleButtonBound.Y;
+                CalButtonBounds(controlButtonsOffsetX, controlButtonsOffsetY, ref this.controlButtons);
 
-                AddButtonBound.X = EditButtonBound.X + EditButtonBound.Width + 10;
-                AddButtonBound.Y = EditButtonBound.Y;
-                if (this.AddButton.CalcBounds(AddButtonBound.X, AddButtonBound.Y))
+                bool calSucceed = this.ModConfig.init ? CalButtonBounds(ref this.Buttons) : CalButtonBounds(OffsetX, OffsetY, ref this.Buttons, true);
+                FirstRender = !calSucceed;
+                if (!FirstRender)
                 {
-                    AddButtonBound = this.AddButton.OutterBounds;
+                    this.ModConfig.init = true;
+                    this.Helper.WriteConfig<ModConfig>(this.ModConfig);
                 }
-
-                bool all_calc = true;
-                for (int line = 0; line < this.Buttons.Count; ++line)
-                {
-                    int LineOffsetX = OffsetX;
-                    for (int index = 0; index < this.Buttons[line].Count; ++index)
-                    {
-                        if (!Buttons[line][index].CalcBounds(LineOffsetX, OffsetY))
-                        {
-                            all_calc = false;
-                            break;
-                        }
-                        LineOffsetX = Buttons[line][index].OutterBounds.X + Buttons[line][index].OutterBounds.Width + 10;
-                    }
-                    OffsetY = Buttons[line][0].OutterBounds.Y + Buttons[line][0].OutterBounds.Height + 10;
-                }
-                FirstRender = !all_calc;
             }
         }
 

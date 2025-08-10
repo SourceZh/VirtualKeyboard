@@ -3,10 +3,10 @@ using StardewModdingAPI.Events;
 
 namespace VirtualKeyboard
 {
-    internal class ToggleButton : KeyButton
+    internal class ControlButton : KeyButton
     {
         Action ButtonPressedAction;
-        public ToggleButton(ModEntry modEntry, IModHelper helper, ModConfig.VirtualButton buttonDefine, int aboveMenu, Action action) : base(modEntry, helper, buttonDefine, aboveMenu)
+        public ControlButton(ModEntry modEntry, IModHelper helper, ModConfig.VirtualButton buttonDefine, int aboveMenu, Action action) : base(modEntry, helper, buttonDefine, aboveMenu)
         {
             ButtonPressedAction = action;
         }

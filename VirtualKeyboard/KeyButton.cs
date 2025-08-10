@@ -32,6 +32,8 @@ namespace VirtualKeyboard
             this.EditButton = false;
             this.ButtonKey = buttonDefine.key;
             this.Alias = buttonDefine.alias != "" ? buttonDefine.alias : this.ButtonKey.ToString();
+            this.OutterBounds.X = buttonDefine.pos.X;
+            this.OutterBounds.Y = buttonDefine.pos.Y;
             this.Helper = helper;
 
             this.ButtonScale = Helper.ReadConfig<ModConfig>().ButtonScale;
