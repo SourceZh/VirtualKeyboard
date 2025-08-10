@@ -112,6 +112,8 @@ namespace VirtualKeyboard
 
         private void VirtualToggleButtonPressed(object? sender, ButtonPressedEventArgs e)
         {
+            if (e.Button != SButton.MouseLeft)
+                return;
             // ignore if player hasn't loaded a save yet
             if (!Context.IsWorldReady)
                 return;

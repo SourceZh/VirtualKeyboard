@@ -109,6 +109,8 @@ namespace VirtualKeyboard
 
         private void EventInputButtonPressed(object? sender, ButtonPressedEventArgs e)
         {
+            if (e.Button != SButton.MouseLeft)
+                return;
             if (Deleted)
                 return;
             // ignore if player hasn't loaded a save yet
