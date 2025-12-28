@@ -47,8 +47,8 @@ namespace VirtualKeyboard
                 {
                     this.ModConfig.Buttons[index].key = this.Buttons[index].ButtonKey;
                     this.ModConfig.Buttons[index].alias = this.Buttons[index].Alias;
-                    this.ModConfig.Buttons[index].pos.X = this.Buttons[index].OutterBounds.X;
-                    this.ModConfig.Buttons[index].pos.Y = this.Buttons[index].OutterBounds.Y;
+                    this.ModConfig.Buttons[index].pos.X = this.Buttons[index].TextBounds.X;
+                    this.ModConfig.Buttons[index].pos.Y = this.Buttons[index].TextBounds.Y;
                     index++;
                 }
             }
@@ -71,11 +71,11 @@ namespace VirtualKeyboard
                 this.Buttons.Add(new KeyButton(this, helper, this.ModConfig.Buttons[index], this.ModConfig.AboveMenu));
             }
 
-            VirtualButton EditVirtualButton = new VirtualButton(0, new Pos(0, 0), "edit button");
+            VirtualButton EditVirtualButton = new VirtualButton(0, new Pos(0, 0), "Edit");
             this.ControlButtons.Add(new ControlButton(this, helper, EditVirtualButton, this.ModConfig.AboveMenu, EditButtonPressed));
             if (Constants.TargetPlatform == GamePlatform.Android)
             {
-                VirtualButton AddVirtualButton = new VirtualButton(0, new Pos(0, 0), "add button");
+                VirtualButton AddVirtualButton = new VirtualButton(0, new Pos(0, 0), "Add");
                 this.ControlButtons.Add(new ControlButton(this, helper, AddVirtualButton, this.ModConfig.AboveMenu, AddButtonPressed));
             }
 
@@ -123,8 +123,8 @@ namespace VirtualKeyboard
             KeyButton newButton = new KeyButton(this, this.Helper, newVirtualButton, this.ModConfig.AboveMenu);
             
             KeyButton last_control_button = ControlButtons.Last();
-            int offsetX = last_control_button.OutterBounds.X + last_control_button.OutterBounds.Width + 10;
-            int offsetY = last_control_button.OutterBounds.Y;
+            int offsetX = last_control_button.TextBounds.X + last_control_button.TextBounds.Width + 10;
+            int offsetY = last_control_button.TextBounds.Y;
             newButton.CalcBounds(offsetX, offsetY);
             newButton.Hidden = false;
             this.ModConfig.Buttons.Add(newVirtualButton);
@@ -258,9 +258,9 @@ namespace VirtualKeyboard
                 }
                 if (saveConfig)
                 {
-                    this.ModConfig.Buttons[index].pos = new Pos(buttons[index].OutterBounds.X, buttons[index].OutterBounds.Y);
+                    this.ModConfig.Buttons[index].pos = new Pos(buttons[index].TextBounds.X, buttons[index].TextBounds.Y);
                 }
-                lineOffsetX = buttons[index].OutterBounds.X + buttons[index].OutterBounds.Width + 10;
+                lineOffsetX = buttons[index].TextBounds.X + buttons[index].TextBounds.Width + 10 + KeyButton.PixelBorderSize;
             }
             return allCalc;
         }
@@ -270,7 +270,7 @@ namespace VirtualKeyboard
             bool allCalc = true;
             foreach (KeyButton keyButton in this.Buttons)
             {
-                if (!keyButton.CalcBounds(keyButton.OutterBounds.X, keyButton.OutterBounds.Y))
+                if (!keyButton.CalcBounds(keyButton.TextBounds.X, keyButton.TextBounds.Y))
                 {
                     allCalc = false;
                     break;
@@ -295,12 +295,12 @@ namespace VirtualKeyboard
                 VirtualToggleButtonBound.X = ToolbarOffset.X + this.ModConfig.vToggle.rectangle.X;
                 VirtualToggleButtonBound.Y = ToolbarOffset.Y + this.ModConfig.vToggle.rectangle.Y;
 
-                int controlButtonsOffsetX = this.ModConfig.vToggle.rectangle.X + VirtualToggleButtonBound.Width + 10;
-                int controlButtonsOffsetY = this.ModConfig.vToggle.rectangle.Y;
+                int controlButtonsOffsetX = this.ModConfig.vToggle.rectangle.X + VirtualToggleButtonBound.Width + 10 + KeyButton.PixelBorderSize;
+                int controlButtonsOffsetY = this.ModConfig.vToggle.rectangle.Y + KeyButton.PixelBorderSize;
                 CalButtonBounds(controlButtonsOffsetX, controlButtonsOffsetY, ref this.ControlButtons);
 
-                int buttonsOffsetX = this.ModConfig.vToggle.rectangle.X;
-                int buttonsOffsetY = this.ModConfig.vToggle.rectangle.Y + this.ModConfig.vToggle.rectangle.Height + 4;
+                int buttonsOffsetX = this.ModConfig.vToggle.rectangle.X + KeyButton.PixelBorderSize;
+                int buttonsOffsetY = this.ModConfig.vToggle.rectangle.Y + this.ModConfig.vToggle.rectangle.Height + 4 + KeyButton.PixelBorderSize;
                 bool calSucceed = this.ModConfig.Init ? CalButtonBounds(ref this.Buttons) : CalButtonBounds(buttonsOffsetX, buttonsOffsetY, ref this.Buttons, true);
                 FirstRender = !calSucceed;
                 if (!FirstRender)

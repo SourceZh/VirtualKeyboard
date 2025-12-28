@@ -10,12 +10,11 @@ namespace VirtualKeyboard
 {
     internal class KeyButton
     {
-        public const int ButtonBorderWidth = 4;
+        public const int PixelBorderSize = 12;
         public bool Deleted;
         public bool Hidden;
         public bool EditButton;
-        public Rectangle OutterBounds;
-        private Rectangle InnerBounds;
+        public Rectangle TextBounds;
         public SButton ButtonKey;
         private readonly float Transparency;
         public string Alias;
@@ -39,8 +38,8 @@ namespace VirtualKeyboard
             this.ButtonKey = buttonDefine.key;
             this.Alias = buttonDefine.alias != "" ? buttonDefine.alias : this.ButtonKey.ToString();
             this.PaddingAlias = this.Alias;
-            this.OutterBounds.X = buttonDefine.pos.X;
-            this.OutterBounds.Y = buttonDefine.pos.Y;
+            this.TextBounds.X = buttonDefine.pos.X;
+            this.TextBounds.Y = buttonDefine.pos.Y;
             this.Helper = helper;
 
             this.ButtonScale = Helper.ReadConfig<ModConfig>().ButtonScale;
@@ -55,23 +54,23 @@ namespace VirtualKeyboard
 
         public bool CalcBounds(int x, int y)
         {
-            this.OutterBounds.X = x;
-            this.OutterBounds.Y = y;
+            this.TextBounds.X = x;
+            this.TextBounds.Y = y;
 
             if (Game1.smallFont == null)
             {
                 return false;
             }
 
-            Vector2 bounds = Game1.smallFont.MeasureString(this.PaddingAlias);
-            while (bounds.X < bounds.Y)
+            Vector2 textSize = Game1.smallFont.MeasureString(this.PaddingAlias);
+            while (textSize.X < textSize.Y)
             {
                 string paddingAlias = " " + this.PaddingAlias + " ";
                 Vector2 paddingBounds = Game1.smallFont.MeasureString(paddingAlias);
                 if (paddingBounds.X < paddingBounds.Y)
                 {
                     this.PaddingAlias = paddingAlias;
-                    bounds = paddingBounds;
+                    textSize = paddingBounds;
                 }
                 else
                 {
@@ -79,17 +78,12 @@ namespace VirtualKeyboard
                 }
             }
 
-            this.InnerBounds.X = OutterBounds.X + ButtonBorderWidth;
-            this.InnerBounds.Y = OutterBounds.Y + ButtonBorderWidth;
-            this.InnerBounds.Width = (int)(bounds.X * this.ButtonScale) + 1;
-            this.InnerBounds.Height = (int)(bounds.Y * this.ButtonScale) + 1;
-
-            this.OutterBounds.Width = InnerBounds.Width + ButtonBorderWidth * 2;
-            this.OutterBounds.Height = InnerBounds.Height + ButtonBorderWidth * 2;
+            this.TextBounds.Width = (int)(textSize.X * this.ButtonScale) + 1;
+            this.TextBounds.Height = (int)(textSize.Y * this.ButtonScale) + 1;
 
             int CloseButtonSize = 20;
-            this.CloseButtonBounds.X = this.OutterBounds.X + InnerBounds.Width - CloseButtonSize / 2;
-            this.CloseButtonBounds.Y = this.OutterBounds.Y - CloseButtonSize / 2;
+            this.CloseButtonBounds.X = this.TextBounds.X + TextBounds.Width - CloseButtonSize / 2;
+            this.CloseButtonBounds.Y = this.TextBounds.Y - CloseButtonSize / 2;
             this.CloseButtonBounds.Width = CloseButtonSize;
             this.CloseButtonBounds.Height = CloseButtonSize;
 
@@ -153,17 +147,17 @@ namespace VirtualKeyboard
                 else
                 {
                     // move button
-                    this.SelectButton = ShouldTrigger(screenPixels, this.OutterBounds);
+                    this.SelectButton = ShouldTrigger(screenPixels, this.TextBounds);
                     if (this.SelectButton) {
-                        this.BeforeOutterBounds.X = this.OutterBounds.X;
-                        this.BeforeOutterBounds.Y = this.OutterBounds.Y;
+                        this.BeforeOutterBounds.X = this.TextBounds.X;
+                        this.BeforeOutterBounds.Y = this.TextBounds.Y;
                     }
                     this.ModEntry.Monitor.Log("EventInputButtonPressed" + Alias, LogLevel.Debug);
                 }
             }
             else
             {
-                if (ShouldTrigger(screenPixels, this.OutterBounds))
+                if (ShouldTrigger(screenPixels, this.TextBounds))
                 {
                     ButtonPressed();
                 }
@@ -197,12 +191,13 @@ namespace VirtualKeyboard
                     descript_task.ContinueWith(ss => {
                         this.Alias = ss.Result;
                         this.PaddingAlias = Alias;
-                        CalcBounds(this.OutterBounds.X, this.OutterBounds.Y);
+                        CalcBounds(this.TextBounds.X, this.TextBounds.Y);
                         ModEntry.UpdateAllButtons();
                     });
                 }
             });
         }
+
         private void EventInputButtonReleased(object? sender, ButtonReleasedEventArgs e)
         {
             if (e.Button != SButton.MouseLeft)
@@ -216,7 +211,7 @@ namespace VirtualKeyboard
             this.ModEntry.Monitor.Log("EventInputButtonReleased" + Alias, LogLevel.Debug);
             this.SelectButton = false;
             int ticks = Game1.ticks;
-            if (ticks - this.LastPressTick > 24 && this.BeforeOutterBounds.X == this.OutterBounds.X && this.BeforeOutterBounds.Y == this.OutterBounds.Y)
+            if (ticks - this.LastPressTick > 24 && this.BeforeOutterBounds.X == this.TextBounds.X && this.BeforeOutterBounds.Y == this.TextBounds.Y)
             {
                 ChangeButtonValue();
             }
@@ -225,6 +220,7 @@ namespace VirtualKeyboard
                 this.ModEntry.UpdateAllButtons();
             }
         }
+
         private Rectangle CalBoundFromUIScale(Rectangle bound)
         {
             Rectangle CalBound;
@@ -255,15 +251,16 @@ namespace VirtualKeyboard
                 return;
 
             //e.SpriteBatch.Draw(Game1.menuTexture, OutterBounds, new Rectangle(0, 256, 60, 60), Color.White);
-            Rectangle offsetOutterBounds = this.OutterBounds;
+            Rectangle offsetOutterBounds = this.TextBounds;
             offsetOutterBounds.X += this.ModEntry.ToolbarOffset.X;
             offsetOutterBounds.Y += this.ModEntry.ToolbarOffset.Y;
             Rectangle UIScaleOutterBoundsRectangle = CalBoundFromUIScale(offsetOutterBounds);
-            e.SpriteBatch.Draw(Game1.menuTexture, UIScaleOutterBoundsRectangle, new Rectangle(0, 256, 60, 60), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
+            //e.SpriteBatch.Draw(Game1.menuTexture, UIScaleOutterBoundsRectangle, new Rectangle(0, 256, 60, 60), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
+            OnRenderedDrawOutterBound(e, UIScaleOutterBoundsRectangle);
 
             //e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, new Vector2(this.InnerBounds.X, this.InnerBounds.Y), Game1.textColor);
             float UIScale = Utility.ModifyCoordinateFromUIScale(this.ButtonScale);
-            Vector2 offsetInnerBounds = new Vector2(this.ModEntry.ToolbarOffset.X + this.InnerBounds.X, this.ModEntry.ToolbarOffset.Y + this.InnerBounds.Y);
+            Vector2 offsetInnerBounds = new Vector2(this.ModEntry.ToolbarOffset.X + this.TextBounds.X, this.ModEntry.ToolbarOffset.Y + this.TextBounds.Y);
             Vector2 UIScaleInnerBounds = Utility.ModifyCoordinatesFromUIScale(offsetInnerBounds);
             e.SpriteBatch.DrawString(Game1.smallFont, this.PaddingAlias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
 
@@ -288,14 +285,15 @@ namespace VirtualKeyboard
                 return;
 
             //e.SpriteBatch.Draw(Game1.menuTexture, OutterBounds, new Rectangle(0, 256, 60, 60), Color.White);
-            Rectangle UIScaleOutterBoundsRectangle = this.OutterBounds;
+            Rectangle UIScaleOutterBoundsRectangle = this.TextBounds;
             UIScaleOutterBoundsRectangle.X += this.ModEntry.ToolbarOffset.X;
             UIScaleOutterBoundsRectangle.Y += this.ModEntry.ToolbarOffset.Y;
-            e.SpriteBatch.Draw(Game1.menuTexture, UIScaleOutterBoundsRectangle, new Rectangle(0, 256, 60, 60), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
+            //e.SpriteBatch.Draw(Game1.menuTexture, UIScaleOutterBoundsRectangle, new Rectangle(0, 256, 60, 60), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
+            OnRenderedActiveMenuDrawOutterBound(e, UIScaleOutterBoundsRectangle);
 
             //e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, new Vector2(this.InnerBounds.X, this.InnerBounds.Y), Game1.textColor);
             float UIScale = this.ButtonScale;
-            Vector2 UIScaleInnerBounds = new Vector2(this.ModEntry.ToolbarOffset.X + this.InnerBounds.X, this.ModEntry.ToolbarOffset.Y + this.InnerBounds.Y);
+            Vector2 UIScaleInnerBounds = new Vector2(this.ModEntry.ToolbarOffset.X + this.TextBounds.X, this.ModEntry.ToolbarOffset.Y + this.TextBounds.Y);
             e.SpriteBatch.DrawString(Game1.smallFont, this.PaddingAlias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
 
             OnRenderedActiveMenuCloseButton(e);
@@ -310,9 +308,85 @@ namespace VirtualKeyboard
             if (!this.SelectButton)
                 return;
             Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.NewPosition.ScreenPixels);
-            this.OutterBounds.X = (int)(screenPixels.X - MouseOffset.X);
-            this.OutterBounds.Y = (int)(screenPixels.Y - MouseOffset.Y);
-            CalcBounds(this.OutterBounds.X, this.OutterBounds.Y);
+            this.TextBounds.X = (int)(screenPixels.X - MouseOffset.X);
+            this.TextBounds.Y = (int)(screenPixels.Y - MouseOffset.Y);
+            CalcBounds(this.TextBounds.X, this.TextBounds.Y);
+        }
+
+        private void OnRenderedDrawOutterBound(RenderedEventArgs e, Rectangle BoundsRectangle)
+        {
+            int BorderSize = (int)Utility.ModifyCoordinateFromUIScale(PixelBorderSize);
+
+            Rectangle OuterBorderRect = new Rectangle(
+                BoundsRectangle.X - BorderSize,
+                BoundsRectangle.Y - BorderSize,
+                BoundsRectangle.Width + 2 * BorderSize,
+                BoundsRectangle.Height + 2 * BorderSize
+            );
+
+            // left
+            e.SpriteBatch.Draw(Game1.menuTexture,
+                new Rectangle(OuterBorderRect.X, OuterBorderRect.Y, BorderSize, OuterBorderRect.Height),
+                new Rectangle(0, 256, PixelBorderSize, 60), 
+                Color.White, 0, Vector2.Zero, SpriteEffects.None, 1E-06f);
+
+            // right
+            e.SpriteBatch.Draw(Game1.menuTexture,
+                new Rectangle(OuterBorderRect.Right - BorderSize, OuterBorderRect.Y, BorderSize, OuterBorderRect.Height),
+                new Rectangle(60 - PixelBorderSize, 256, PixelBorderSize, 60), 
+                Color.White, 0, Vector2.Zero, SpriteEffects.None, 1E-06f);
+
+            // top
+            e.SpriteBatch.Draw(Game1.menuTexture,
+                new Rectangle(OuterBorderRect.X + BorderSize, OuterBorderRect.Y, OuterBorderRect.Width - 2 * BorderSize, BorderSize),
+                new Rectangle(PixelBorderSize, 256, 60 - 2 * PixelBorderSize, PixelBorderSize),
+                Color.White, 0, Vector2.Zero, SpriteEffects.None, 1E-06f);
+
+            // bottom
+            e.SpriteBatch.Draw(Game1.menuTexture,
+                new Rectangle(OuterBorderRect.X + BorderSize, OuterBorderRect.Bottom - BorderSize, OuterBorderRect.Width - 2 * BorderSize, BorderSize),
+                new Rectangle(PixelBorderSize, 256 + 60 - PixelBorderSize, 60 - 2 * PixelBorderSize, PixelBorderSize),
+                Color.White, 0, Vector2.Zero, SpriteEffects.None, 1E-06f);
+
+            e.SpriteBatch.Draw(Game1.menuTexture, BoundsRectangle, new Rectangle(PixelBorderSize, 256 + PixelBorderSize, 60 - 2 * PixelBorderSize, 60 - 2 * PixelBorderSize), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
+        }
+
+        private void OnRenderedActiveMenuDrawOutterBound(RenderedActiveMenuEventArgs e, Rectangle BoundsRectangle)
+        {
+            int BorderSize = PixelBorderSize;
+
+            Rectangle OuterBorderRect = new Rectangle(
+                BoundsRectangle.X - BorderSize,
+                BoundsRectangle.Y - BorderSize,
+                BoundsRectangle.Width + 2 * BorderSize,
+                BoundsRectangle.Height + 2 * BorderSize
+            );
+
+            // left
+            e.SpriteBatch.Draw(Game1.menuTexture,
+                new Rectangle(OuterBorderRect.X, OuterBorderRect.Y, BorderSize, OuterBorderRect.Height),
+                new Rectangle(0, 256, PixelBorderSize, 60),
+                Color.White, 0, Vector2.Zero, SpriteEffects.None, 1E-06f);
+
+            // right
+            e.SpriteBatch.Draw(Game1.menuTexture,
+                new Rectangle(OuterBorderRect.Right - BorderSize, OuterBorderRect.Y, BorderSize, OuterBorderRect.Height),
+                new Rectangle(60 - PixelBorderSize, 256, PixelBorderSize, 60),
+                Color.White, 0, Vector2.Zero, SpriteEffects.None, 1E-06f);
+
+            // top
+            e.SpriteBatch.Draw(Game1.menuTexture,
+                new Rectangle(OuterBorderRect.X + BorderSize, OuterBorderRect.Y, OuterBorderRect.Width - 2 * BorderSize, BorderSize),
+                new Rectangle(PixelBorderSize, 256, 60 - 2 * PixelBorderSize, PixelBorderSize),
+                Color.White, 0, Vector2.Zero, SpriteEffects.None, 1E-06f);
+
+            // bottom
+            e.SpriteBatch.Draw(Game1.menuTexture,
+                new Rectangle(OuterBorderRect.X + BorderSize, OuterBorderRect.Bottom - BorderSize, OuterBorderRect.Width - 2 * BorderSize, BorderSize),
+                new Rectangle(PixelBorderSize, 256 + 60 - PixelBorderSize, 60 - 2 * PixelBorderSize, PixelBorderSize),
+                Color.White, 0, Vector2.Zero, SpriteEffects.None, 1E-06f);
+
+            e.SpriteBatch.Draw(Game1.menuTexture, BoundsRectangle, new Rectangle(PixelBorderSize, 256 + PixelBorderSize, 60 - 2 * PixelBorderSize, 60 - 2 * PixelBorderSize), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
         }
     }
 }
