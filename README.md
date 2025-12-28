@@ -96,10 +96,10 @@ To change the toggle button image:
 
 1. Add your own image file to the `assets` directory.
 2. Open the `config.json` file.
-3.Locate and modify the value of the `TogglePath` setting. Set it to the path of your new image file (e.g., `"assets/your_image.png"`). The default value is `"assets/togglebutton.png"`.
+3. Locate and modify the value of the `TogglePath` setting. Set it to the path of your new image file (e.g., `"assets/your_image.png"`). The default value is `"assets/togglebutton.png"`.
 
 ```json
-  "AboveMenu": 0
+  "TogglePath": "assets/togglebutton.png"
 ```
 
 ### Default Config
