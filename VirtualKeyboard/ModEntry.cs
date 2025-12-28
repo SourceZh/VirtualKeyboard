@@ -79,7 +79,7 @@ namespace VirtualKeyboard
                 this.ControlButtons.Add(new ControlButton(this, helper, AddVirtualButton, this.ModConfig.AboveMenu, AddButtonPressed));
             }
 
-            Texture2D texture = helper.ModContent.Load<Texture2D>("assets/togglebutton.png");
+            Texture2D texture = helper.ModContent.Load<Texture2D>(this.ModConfig.TriggerPath);
             VirtualToggleButtonBound = new Rectangle(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y, this.ModConfig.vToggle.rectangle.Width, this.ModConfig.vToggle.rectangle.Height);
             this.VirtualToggleButton = new ClickableTextureComponent(VirtualToggleButtonBound, texture, new Rectangle(0, 0, 16, 16), 4f, false);
             //helper.WriteConfig<ModConfig>(this.ModConfig);
