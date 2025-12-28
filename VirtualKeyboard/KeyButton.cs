@@ -82,8 +82,8 @@ namespace VirtualKeyboard
             this.TextBounds.Height = (int)(textSize.Y * this.ButtonScale) + 1;
 
             int CloseButtonSize = 20;
-            this.CloseButtonBounds.X = this.TextBounds.X + TextBounds.Width - CloseButtonSize / 2;
-            this.CloseButtonBounds.Y = this.TextBounds.Y - CloseButtonSize / 2;
+            this.CloseButtonBounds.X = this.TextBounds.X + TextBounds.Width + PixelBorderSize / 2 - CloseButtonSize / 2;
+            this.CloseButtonBounds.Y = this.TextBounds.Y - PixelBorderSize / 2 - CloseButtonSize / 2;
             this.CloseButtonBounds.Width = CloseButtonSize;
             this.CloseButtonBounds.Height = CloseButtonSize;
 
