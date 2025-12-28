@@ -1,7 +1,7 @@
 {
   "Name": "VirtualKeyboard",
   "Author": "DoubleZ",
-  "Version": "1.0.9",
+  "Version": "1.1.0",
   "Description": "simple virtual keyboard",
   "UniqueID": "DoubleZ.VirtualKeyboard",
   "EntryDll": "VirtualKeyboard.dll",
